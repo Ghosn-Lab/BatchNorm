@@ -1,0 +1,7 @@
+pandoc: 2.7.3
+pkgdown: 1.6.1
+pkgdown_sha: ~
+articles:
+  Biaxial_Gating: Biaxial_Gating.html
+last_built: 2021-10-09T16:56Z
+
