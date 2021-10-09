@@ -1,3 +1,5 @@
+url: https://ghosn-lab.github.io/BatchNorm
+
 template:
   params:
     bootswatch: cerulean
