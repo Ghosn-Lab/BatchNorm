@@ -8,7 +8,7 @@ Authors@R:
            email = "ben.babcock@emory.edu",
            comment = c(ORCID = "0000-0002-2902-8045"))
 Description: The Ghosn Lab "Batch Normalization" package contains functions in support of our recent manuscript "Data Matrix Normalization and Merging Strategies Minimize Batch-specific Systemic Variation in scRNA-Seq Data".
-License: `use_gpl3_license()` 
+License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
