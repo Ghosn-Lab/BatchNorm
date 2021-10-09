@@ -22,6 +22,8 @@ Suggests:
     ggcyto,
     RColorBrewer,
     ggplot2
+Remotes:
+	immunogenomics/LISI
 Depends: 
     R (>= 2.10)
 URL: https://ghosn-lab.github.io/BatchNorm
