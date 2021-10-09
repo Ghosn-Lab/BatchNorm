@@ -1,9 +1,4 @@
-library(Matrix)
-library(Seurat)
-library(dplyr)
-library(ggcyto)
-library(RColorBrewer)
-library(lisi)
+
 
 # Function to z-score each PC's percentage of the total variance captured
 #' Test PCA
@@ -135,30 +130,4 @@ GetCMS <- function(object = NULL, sample.ID = NULL, reference.ID = NULL){
   return(CMS)
 }
 
-# Function to import scRNA + ADT dataset from GEO
-#' Download and import single-cell data
-#'
-#' Download the dataset from GEO, filter, and create a Seurat object
-#' @param url Provide the complete file path to the
-#' @references Benjamin R. Babcock, et al.
-#' Data Matrix Normalization and Merging Strategies Minimize Batch-specific Systemic Variation in scRNA-Seq Data
-#' Freely available as a preprint on bioRxiv. doi: https://doi.org/10.1101/2021.08.18.456898
-#' @return Returns a pre-processed Seurat object
-#' @export
-#' @import Seurat
-import_PBMCs <- function(sample = NULL) {
-  # Get Seurat Objects
-  fh <- "~/OneDrive - Emory University/Ghosn_Lab/Batch/Workflow/Data/Export/PBMCSample2.rds"
-  PBMC2 <- readRDS(file = fh)
-  cds <- cds[, cds$population == "Epithelial"]
-  cds <- cds[, cds$celltype %in% c("AT1", "AT2", "SCGB3A2+", "Transitional AT2")]
-  sce <- as.SingleCellExperiment(cds)
-  filt <- apply(counts(sce), 1, function(x){
-    sum(x >= 2) >= 30
-  })
-  assays(sce) <- assays(sce)[1]
-  altExp(sce) <- NULL
-  sce <- sce[filt, ]
-  return(sce)
-}
 

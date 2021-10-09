@@ -40,8 +40,8 @@ PBMC4A <- PBMC4A %>%
 ## Selecting the appropriate number of Principal Components for UMAP reduction
 ```{r PC_Selection, message = FALSE}
 # Identify correct numbers of PCs
-#PBMC4A.pca.test <- TestPCA(object = PBMC4A)
-#PBMC4A.pca.test[, 1:20]
+PBMC4A.pca.test <- TestPCA(object = PBMC4A)
+PBMC4A.pca.test[, 1:20]
 # 16 PCs with a z-score > 1
 # Proceed with 16 PCs for dimensional reduction & clustering
 # Visualize PCs plotted by standard deviation:
