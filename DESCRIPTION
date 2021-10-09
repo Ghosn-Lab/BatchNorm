@@ -14,14 +14,14 @@ LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.2
 Imports:
-	Matrix,
-	Seurat,
-	dplyr
+    Matrix,
+    Seurat,
+    dplyr,
+    lisi
 Suggests:
-	ggcyto,
-	RColorBrewer,
-	ggplot2,
-	lisi
+    ggcyto,
+    RColorBrewer,
+    ggplot2
 Depends: 
     R (>= 2.10)
 URL: https://ghosn-lab.github.io/BatchNorm
