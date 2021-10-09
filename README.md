@@ -6,7 +6,7 @@ This repository is intended to support reproducibility of our recent manuscript:
 
 To enable rapid reproduction of the published figures, we have made a set of pre-assembled Seurat objects available as part of an R packaged "BatchNorm", available on github [here](https://github.com/Ghosn-Lab/BatchNorm).
 
-<img src='man/Figures/CMS_Overview.jpg' align="Center" height="300"/>
+<img src='reference/figures/CMS_Overview.jpg' align="Center" height="300"/>
 
 # Installation
 To install the package (along with select published datasets in support of the manuscript) in `R`, run:
