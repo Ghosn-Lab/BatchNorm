@@ -8,5 +8,22 @@ To enable rapid reproduction of the published figures, we have made a set of pre
 
 <img src='man/Figures/CMS_Overview.jpg' align="Center" height="300"/>
 
+# Installation
+To install the package (along with select published datasets in support of the manuscript) in `R`, run:
 
+```r
+if(!requireNamespace("devtools", quietly = TRUE)) {
+ install.packages("devtools") 
+}
+devtools::install_github("Ghosn-Lab/BatchNorm")
+```
+The package should install within a few minutes, and all functions can be reproduced on a standard desktop or laptop without special hardware.
+
+# Examples
 To reproduce the results and figures as presented in the manuscript, you can follow along with our vignettes [here](https://ghosn-lab.github.io/BatchNorm)
+
+## Biaxial Gating
+[The first vignette](https://ghosn-lab.github.io/BatchNorm/articles/Biaxial_Gating.html) depicts the biaxial gating of a single sample (published as PBMC Sample 4-A). Following along with this vignette will reproduce the individual panels of Figure S3.
+
+
+
