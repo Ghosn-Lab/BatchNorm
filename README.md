@@ -1,4 +1,4 @@
-<img src='https://github.com/Ghosn-Lab/BatchNorm/branch/main/man/Figures/Ghosn_Lab_logo_cropped.jpg' align="right" height="138.5"/>
+<img src='https://github.com/Ghosn-Lab/BatchNorm/tree/main/man/Figures/Ghosn_Lab_logo_cropped.jpg' align="right" height="138.5"/>
 
 # Data Matrix Normalization and Merging Strategies Minimize Batch-specific Systemic Variation in scRNA-Seq Data
 
