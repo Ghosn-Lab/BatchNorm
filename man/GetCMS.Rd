@@ -23,5 +23,7 @@ Also requires a dataframe containing the "reference" cell classifications genera
 A single score on a scale of 0-1 is returned.
 }
 \examples{
+# NOT RUN {
 GetCMS(object = my_seurat_object, sample.ID = "PBMC_01", reference.ID = PBMC01_SingleSample_RefID)
+# }
 }

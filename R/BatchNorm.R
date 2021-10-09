@@ -5,24 +5,22 @@ library(ggcyto)
 library(RColorBrewer)
 library(lisi)
 
-colors.use <- c(RColorBrewer::brewer.pal(8, 'Set1')[c(1:5,7:8)],
-                RColorBrewer::brewer.pal(7, 'Dark2'),
-                'blue4', 'orangered', 'orangered4',
-                c(RColorBrewer::brewer.pal(12, 'Paired'),
-                  RColorBrewer::brewer.pal(6, 'Accent'))[c(1:10, 12, 15:18)])
-
 # Function to z-score each PC's percentage of the total variance captured
 #' Test PCA
 #'
 #' Identify important PCs from total principal components analysis (within a Seurat object).
 #' TestPCA functions by generating a z-score corresponding to each respective PC's proportional contribution to the total variance.
 #' Can be used similarly to the Seurat function ElbowPlot, which plots each successive PC by its standard deviation.
-#' @param genes.use The vector of variable features used to construct the PCs
-#' @param mtx.use The expression matrix used to construct the PCs.
+#' @param object A seurat object with variable features set and data scaled
+#' @param genes.use (Optional) The vector of variable features used to construct the PCs. Can be used in place of "object"  to apply a specific set of variable genes.
+#' @param mtx.use (Optional) The expression matrix used to construct the PCs. Can be used in place of "object"  to apply a specific matrix (such as non-scaled data or ADT counts).
 #' At a minimum, this matrix must included the variable features included in "genes.use"
 #' @return Returns a table containing the z-score of the cumulative percent of total variance for each PC
+#' @examples
+#' TestPCA(obj = PBMC4A)[, 1:5]
 #' @export
-TestPCA <- function(genes.use = object@assays$RNA@var.features,
+TestPCA <- function(object = NULL,
+                    genes.use = object@assays$RNA@var.features,
                     mtx.use = object@assays$RNA@scale.data){
   data.use <- mtx.use[genes.use, ]
   pca.results <- svd(x = t(data.use))
@@ -63,19 +61,19 @@ MitoFilter <- function(obj = NULL){
 }
 
 # Function to correct feature names
-#' Split "CD"
+#' Split "CD" Feature Names
 #'
 #' Split feature names to extract "CDx" from ADT labels.
-#' split.CD converts names in the format "CDx_xxxxxx" to "CDx", while eliminating whitespace and correcting capitalization.
+#' splitCD converts names in the format "CDx_xxxxxx" to "CDx", while eliminating whitespace and correcting capitalization.
 #' A vector of feature names in the corrected format is returned.
 #' @param x A vector of feature names to be corrected
 #'
 #' @return Returns a character vector of feature names in the desired format.
 #' @examples
-#' split.CD("CD19_TotalSeqC")
-#' corrected.names <- split.CD(c("CD19_TotalSeqC", "CD45_TotalSeqC"))
+#' splitCD("CD19_TotalSeqC")
+#' corrected.names <- splitCD(c("CD19_TotalSeqC", "CD45_TotalSeqC"))
 #' @export
-split.CD <- function(x = NULL){
+splitCD <- function(x = NULL){
   toupper(trimws(unlist(lapply(strsplit(x, "_"), '[[', 1))))
 }
 
@@ -112,7 +110,9 @@ GetiLISI <- function(object = NULL, nSamples = NULL) {
 #' @param reference.ID A dataframe consisting of a single column, "Cell_Type", containing the cell classifications generated during a single-sample workflow (for use as a reference set without multi-sample batch effects).;
 #' @return Returns a numeric score from 0-1 (best-worst).
 #' @examples
+#' # NOT RUN {
 #' GetCMS(object = my_seurat_object, sample.ID = "PBMC_01", reference.ID = PBMC01_SingleSample_RefID)
+#' # }
 #' @export
 GetCMS <- function(object = NULL, sample.ID = NULL, reference.ID = NULL){
   # Set object idents to sample ID, and subset the selected sample
@@ -133,5 +133,32 @@ GetCMS <- function(object = NULL, sample.ID = NULL, reference.ID = NULL){
   # Divide the number of matches by the total number of cells
   CMS <- 1 - sum(match, na.rm = T)/length(match)
   return(CMS)
+}
+
+# Function to import scRNA + ADT dataset from GEO
+#' Download and import single-cell data
+#'
+#' Download the dataset from GEO, filter, and create a Seurat object
+#' @param url Provide the complete file path to the
+#' @references Benjamin R. Babcock, et al.
+#' Data Matrix Normalization and Merging Strategies Minimize Batch-specific Systemic Variation in scRNA-Seq Data
+#' Freely available as a preprint on bioRxiv. doi: https://doi.org/10.1101/2021.08.18.456898
+#' @return Returns a pre-processed Seurat object
+#' @export
+#' @import Seurat
+import_PBMCs <- function(sample = NULL) {
+  # Get Seurat Objects
+  fh <- "~/OneDrive - Emory University/Ghosn_Lab/Batch/Workflow/Data/Export/PBMCSample2.rds"
+  PBMC2 <- readRDS(file = fh)
+  cds <- cds[, cds$population == "Epithelial"]
+  cds <- cds[, cds$celltype %in% c("AT1", "AT2", "SCGB3A2+", "Transitional AT2")]
+  sce <- as.SingleCellExperiment(cds)
+  filt <- apply(counts(sce), 1, function(x){
+    sum(x >= 2) >= 30
+  })
+  assays(sce) <- assays(sce)[1]
+  altExp(sce) <- NULL
+  sce <- sce[filt, ]
+  return(sce)
 }
 

@@ -5,14 +5,17 @@
 \title{Test PCA}
 \usage{
 TestPCA(
+  object = NULL,
   genes.use = object@assays$RNA@var.features,
   mtx.use = object@assays$RNA@scale.data
 )
 }
 \arguments{
-\item{genes.use}{The vector of variable features used to construct the PCs}
+\item{object}{A seurat object with variable features set and data scaled}
 
-\item{mtx.use}{The expression matrix used to construct the PCs.
+\item{genes.use}{(Optional) The vector of variable features used to construct the PCs. Can be used in place of "object"  to apply a specific set of variable genes.}
+
+\item{mtx.use}{(Optional) The expression matrix used to construct the PCs. Can be used in place of "object"  to apply a specific matrix (such as non-scaled data or ADT counts).
 At a minimum, this matrix must included the variable features included in "genes.use"}
 }
 \value{
@@ -22,4 +25,7 @@ Returns a table containing the z-score of the cumulative percent of total varian
 Identify important PCs from total principal components analysis (within a Seurat object).
 TestPCA functions by generating a z-score corresponding to each respective PC's proportional contribution to the total variance.
 Can be used similarly to the Seurat function ElbowPlot, which plots each successive PC by its standard deviation.
+}
+\examples{
+TestPCA(obj = PBMC4A)[, 1:5]
 }
