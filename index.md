@@ -29,5 +29,5 @@ To reproduce the results and figures as presented in the manuscript, you can fol
 [The second vignette](https://ghosn-lab.github.io/BatchNorm/articles/SampleDonor_Effect.html) demonstrates how we identify sample donor-specific effects by CMS and iLISI scoring using PBMC samples 1-3. Following along will replicate the results, as published in Figure 2A.
 
 ## Sequencing Effects
-[The third vignette](https://ghosn-lab.github.io/BatchNorm/articles/Sequencing_Effect.html) demonstrates how we identify sequencing batch-specific effects by CMS and iLISI scoring using PBMC samples 4 & 5. PBMC sample 4 was sequenced twice without altering any parameters, while PBMC sample 5 was sequenced twice to a different depth of sequence. Following along will replicate the results, as published in Figure 2A.
+[The third vignette](https://ghosn-lab.github.io/BatchNorm/articles/Sequencing_Effect.html) demonstrates how we identify sequencing batch-specific effects by CMS and iLISI scoring using PBMC samples 4 & 5. PBMC sample 4 was sequenced twice without altering any parameters, while PBMC sample 5 was sequenced twice to a different depth of sequence. Following along will replicate the results, as published in Figures 2C & D.
 
