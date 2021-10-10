@@ -24,10 +24,11 @@ opts_chunk$set(
 # Identical (duplicate) Sequencing
 ## Processing the Seurat Object
 ### Data filtering & normalization
-```{r inital_processing, message = FALSE}
+```{r inital_processing_PBMC4, message = FALSE}
 library(BatchNorm)
+
 # Import unfiltered Seurat object (included with 'BatchNorm' package)
-data(PBMC4)
+data(package = 'BatchNorm', PBMC4)
 
 # Run "standard" Seurat workflow: 
 # Including filtering by mitochondrial percentage (+5 SD)
@@ -42,7 +43,7 @@ PBMC4 <- PBMC4 %>%
 ```
 
 ### Selecting the appropriate number of Principal Components for UMAP reduction
-```{r PC_Selection, message = FALSE}
+```{r PC_Selection_PBMC4, message = FALSE}
 # Identify correct numbers of PCs
 PBMC4.pca.test <- TestPCA(PBMC4)
 PBMC4.pca.test[, 1:20]
@@ -53,7 +54,7 @@ ElbowPlot(PBMC4)
 ```
 
 ### Generating a UMAP and clusters
-```{r Clustering, message = FALSE}
+```{r Clustering_PBMC4, message = FALSE}
 PBMC4 <- PBMC4 %>% 
          RunUMAP(reduction = "pca", dims = 1:16) %>%
          FindNeighbors(reduction = "pca", dims = 1:16) %>%
@@ -63,13 +64,13 @@ UMAPPlot(PBMC4, cols = colors.use, group.by = "orig.ident") + ggtitle("Default W
 ```
 
 ### Measuring sample-UMAP integration (generating an iLISI score)
-```{r}
+```{r iLISI_PBMC4}
 GetiLISI(object = PBMC4, nSamples = 2)
 ```
 
 ## Cell Typing of joint PBMCs object for CMS
 ### Convert cluster classifications to cell type classifications
-```{r Cluster_assignment, message = F}
+```{r Cluster_assignment_PBMC4, message = F}
 # For complete cell classification workflow see our vignette "Biaxial Gating of a Single Sample"
 # More details can be found in figure S3 of our manuscript "Data Matrix Normalization and Merging Strategies Minimize Batch-specific Systemic Variation in scRNA-Seq Data."
 UMAPPlot(PBMC4, cols = colors.use, pt.size = 2, 
@@ -106,14 +107,14 @@ UMAPPlot(PBMC4, cols = colors.use, label = F) + ggtitle("Cell Type Classificatio
 ```
 
 ### Compare single-sample workflow cell type classifications to joint classifications (generating a CMS)
-```{r}
+```{r CMS_PBMC4}
 # PBMC Sample 4-A
-data(PBMC4A_Single_ID)
+data(package = 'BatchNorm', PBMC4A_Single_ID)
 S4Acms <- GetCMS(object = PBMC4, 
                 sample.ID = "Sample_4A", 
                 reference.ID = PBMC4A_Single_ID)
 # PBMC Sample 4-B
-data(PBMC4B_Single_ID)
+data(package = 'BatchNorm', PBMC4B_Single_ID)
 S4Bcms <- GetCMS(object = PBMC4, 
                 sample.ID = "Sample_4B", 
                 reference.ID = PBMC4B_Single_ID)
@@ -125,9 +126,9 @@ mean(c(S4Acms, S4Bcms))
 # Non-identical (duplicate, differing depths) Sequencing
 ## Processing the Seurat Object
 ### Data filtering & normalization
-```{r inital_processing, message = FALSE}
+```{r inital_processing_PBMC5, message = FALSE}
 # Import unfiltered Seurat object (included with 'BatchNorm' package)
-data(PBMC5)
+data(package = 'BatchNorm', PBMC5)
 
 # Run "standard" Seurat workflow: 
 # Including filtering by mitochondrial percentage (+5 SD)
@@ -142,7 +143,7 @@ PBMC5 <- PBMC5 %>%
 ```
 
 ### Selecting the appropriate number of Principal Components for UMAP reduction
-```{r PC_Selection, message = FALSE}
+```{r PC_Selection_PBMC5, message = FALSE}
 # Identify correct numbers of PCs
 PBMC5.pca.test <- TestPCA(PBMC5)
 PBMC5.pca.test[, 1:20]
@@ -153,7 +154,7 @@ ElbowPlot(PBMC5)
 ```
 
 ### Generating a UMAP and clusters
-```{r Clustering, message = FALSE}
+```{r Clustering_PBMC5, message = FALSE}
 PBMC5 <- PBMC5 %>% 
          RunUMAP(reduction = "pca", dims = 1:14) %>%
          FindNeighbors(reduction = "pca", dims = 1:14) %>%
@@ -163,13 +164,13 @@ UMAPPlot(PBMC5, cols = colors.use, group.by = "orig.ident") + ggtitle("Default W
 ```
 
 ### Measuring sample-UMAP integration (generating an iLISI score)
-```{r}
+```{r iLISI_PBMC5}
 GetiLISI(object = PBMC5, nSamples = 2)
 ```
 
 ## Cell Typing of joint PBMCs object for CMS
 ### Convert cluster classifications to cell type classifications
-```{r Cluster_assignment, message = F}
+```{r Cluster_assignment_PBMC5, message = F}
 # For complete cell classification workflow see our vignette "Biaxial Gating of a Single Sample"
 # More details can be found in figure S3 of our manuscript "Data Matrix Normalization and Merging Strategies Minimize Batch-specific Systemic Variation in scRNA-Seq Data."
 UMAPPlot(PBMC5, cols = colors.use, pt.size = 2, 
@@ -205,19 +206,18 @@ UMAPPlot(PBMC5, cols = colors.use, label = F) + ggtitle("Cell Type Classificatio
 ```
 
 ### Compare single-sample workflow cell type classifications to joint classifications (generating a CMS)
-```{r}
+```{r CMS_PBMC5}
 # PBMC Sample 5-A
-data(PBMC5A_Single_ID)
+data(package = 'BatchNorm', PBMC5A_Single_ID)
 S5Acms <- GetCMS(object = PBMC5, 
                 sample.ID = "Sample_5A", 
                 reference.ID = PBMC5A_Single_ID)
 # PBMC Sample 5-B
-data(PBMC5B_Single_ID)
+data(package = 'BatchNorm', PBMC5B_Single_ID)
 S5Bcms <- GetCMS(object = PBMC5, 
                 sample.ID = "Sample_5B", 
                 reference.ID = PBMC5B_Single_ID)
 
 # Average CMS
 mean(c(S5Acms, S5Bcms))
-
 ```
