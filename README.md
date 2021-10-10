@@ -1,4 +1,4 @@
-<img src='/man/Figures/Ghosn_Lab_logo_cropped.jpg' align="right" height="138.5"/>
+# pkgdown <img src="/man/Figures/Ghosn_Lab_logo_cropped.jpg" align="right" />
 
 # Data Matrix Normalization and Merging Strategies Minimize Batch-specific Systemic Variation in scRNA-Seq Data
 
