@@ -114,17 +114,17 @@ GetCMS <- function(object = NULL, sample.ID = NULL, reference.ID = NULL){
   Idents(object) <- object[["orig.ident"]]
   id <- subset(object, idents = sample.ID)
   # Convert reference ID cell barcodes to match object barcodes format
-  rownames(reference.ID) <- paste0(id, "_", rownames(reference.ID))
+  rownames(reference.ID) <- paste0(sample.ID, "_", rownames(reference.ID))
   # Select only cells shared between the current object and single-sample ID reference
   cells.use <- intersect(rownames(reference.ID), WhichCells(object))
   # Store ID as a vector
   test_ID <- as.character(object@meta.data[cells.use, 'Cell_Type'])
   reference.ID <- as.character(reference.ID[cells.use, 'Cell_Type'])
   # Create matrix with cell type columns
-  Mismatch.mtx <- cbind(ref_ID, test_ID)
+  Mismatch.mtx <- cbind(reference.ID, test_ID)
   rownames(Mismatch.mtx) <- cells.use
   # Find which test (group-workflow) IDs match reference (single-workflow)
-  match <- Mismatch.mtx[, 'ref_ID'] == Mismatch.mtx[, 'test_ID']
+  match <- Mismatch.mtx[, 'reference.ID'] == Mismatch.mtx[, 'test_ID']
   # Divide the number of matches by the total number of cells
   CMS <- 1 - sum(match, na.rm = T)/length(match)
   return(CMS)
