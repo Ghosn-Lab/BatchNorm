@@ -20,7 +20,7 @@ devtools::install_github("Ghosn-Lab/BatchNorm")
 The package should install within a few minutes, and all functions can be reproduced on a standard desktop or laptop without special hardware.
 
 # Examples
-To reproduce the results and figures as presented in the manuscript, you can follow along with our vignettes [here](https://ghosn-lab.github.io/BatchNorm/index.html)
+To reproduce the results and figures as presented in the manuscript, you can view this github as a user-friendly website [here](https://ghosn-lab.github.io/BatchNorm/) or follow along with our vignettes [here](https://ghosn-lab.github.io/BatchNorm/articles/)
 
 ## Biaxial Gating
 [The first vignette](https://ghosn-lab.github.io/BatchNorm/articles/Biaxial_Gating.html) depicts the biaxial gating of a single sample (published as PBMC Sample 4-A). Following along with this vignette will reproduce the individual panels of Figure S3.
