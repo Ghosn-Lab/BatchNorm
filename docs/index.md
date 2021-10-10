@@ -25,5 +25,6 @@ To reproduce the results and figures as presented in the manuscript, you can fol
 ## Biaxial Gating
 [The first vignette](https://ghosn-lab.github.io/BatchNorm/articles/Biaxial_Gating.html) depicts the biaxial gating of a single sample (published as PBMC Sample 4-A). Following along with this vignette will reproduce the individual panels of Figure S3.
 
-
+## Biaxial Gating
+[The second vignette](https://ghosn-lab.github.io/BatchNorm/articles/SampleDonor_Effect.html) demonstrates how we identify sample donor-specific effects by CMS and iLISI scoring using PBMC samples 1-3. Following along will replicate the results, as published in Figure 2A.
 
