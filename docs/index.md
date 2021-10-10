@@ -1,4 +1,4 @@
-# Ghosn Laboratory <img src="/man/Figures/Ghosn_Lab_logo_cropped.jpg" align="right"  height=200/>
+# Ghosn Laboratory <img src="https://github.com/Ghosn-Lab/BatchNorm/tree/main/man/Figures/Ghosn_Lab_logo_cropped.jpg" align="right"  height=200/>
 
 # Data Matrix Normalization and Merging Strategies Minimize Batch-specific Systemic Variation in scRNA-Seq Data
 
