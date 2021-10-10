@@ -1,4 +1,4 @@
-# Ghosn Laboratory <img src="/man/Figures/Ghosn_Lab_logo_cropped.jpg" align="right"  height=200/>
+# Ghosn Laboratory <img src="https://user-images.githubusercontent.com/50965273/136699995-7f58cf18-2580-4831-aea2-5fccd3c11005.jpg" align="right"  height=200/>
 
 # Data Matrix Normalization and Merging Strategies Minimize Batch-specific Systemic Variation in scRNA-Seq Data
 
@@ -6,7 +6,7 @@ This repository is intended to support reproducibility of our recent manuscript:
 
 To enable rapid reproduction of the published figures, we have made a set of pre-assembled Seurat objects available as part of an R packaged "BatchNorm", available on github [here](https://github.com/Ghosn-Lab/BatchNorm).
 
-![CMS_Overview](https://user-images.githubusercontent.com/50965273/136675082-4c9285c0-e1b2-45ab-a069-001e43a21c0c.jpg)
+<img src="https://user-images.githubusercontent.com/50965273/136675082-4c9285c0-e1b2-45ab-a069-001e43a21c0c.jpg" align="center"  height=400/>
 
 # Installation
 To install the package (along with select published datasets in support of the manuscript) in `R`, run:
