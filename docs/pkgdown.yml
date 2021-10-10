@@ -4,7 +4,7 @@ pkgdown_sha: ~
 articles:
   Biaxial_Gating: Biaxial_Gating.html
   SampleDonor_Effect: SampleDonor_Effect.html
-last_built: 2021-10-10T18:55Z
+last_built: 2021-10-10T20:16Z
 urls:
   reference: https://ghosn-lab.github.io/BatchNorm/reference
   article: https://ghosn-lab.github.io/BatchNorm/articles
