@@ -1,11 +1,11 @@
 ---
-title: "Pooled Sequencing (Figure 3)"
+title: "Pooling samples for sequencing does not appreciably improve the measured batch effect"
 author: "Benjamin R Babcock"
 output: rmarkdown::html_vignette
 description: >
   How to determine if pooling samples to sequence simultaneously can improve sequencing? scRNA-Seq libraries from two different donors, sequenced to similar depth (Samples 4-A, 4-B and 5-A) were either sequenced at the same time ("sequenced together" samples 4-A & 5-A) or at different times ("sequenced separately" samples 4-B & 5-A). The full results of this test are described in our published Figure 3.
 vignette: >
-  %\VignetteIndexEntry{Pooled Sequencing (Figure 3)}
+  %\VignetteIndexEntry{Pooling samples for sequencing does not appreciably improve the measured batch effect}
   %\VignetteEngine{knitr::rmarkdown}
   \usepackage[utf8]{inputenc}
 ---
@@ -21,7 +21,234 @@ opts_chunk$set(
 )
 ```
 
-```{r}
+# Different Sequencing Pools ("sequenced separately")
+## Processing the Seurat Objects 4-B & 5-A
+### Data filtering & normalization
+```{r inital_processing_seqapart, message = FALSE}
+library(BatchNorm)
+
+# Import unfiltered Seurat PBMC4 object & extract "4B" (included with 'BatchNorm' package)
+data(package = 'BatchNorm', PBMC4)
+Idents(PBMC4) <- PBMC4[["orig.ident"]]
+PBMC4B <- subset(PBMC4, idents = "Sample_4B")
+# Import unfiltered Seurat PBMC5 object & extract "5A" (included with 'BatchNorm' package)
+data(package = 'BatchNorm', PBMC5)
+Idents(PBMC5) <- PBMC5[["orig.ident"]]
+PBMC5A <- subset(PBMC5, idents = "Sample_5A")
+# Merge "sequenced together" samples into a single object and remove unnecessry objects from the workspace
+PBMCs <- merge(PBMC4B, y = PBMC5A)
+rm(list = c('PBMC4', 'PBMC5', 'PBMC4A', 'PBMC5A'))
+
+# Run "standard" Seurat workflow: 
+# Including filtering by mitochondrial percentage (+5 SD)
+# Including data normalization, variable gene selection and gene scaling (performed on all samples together)
+PBMCs <- PBMCs %>% 
+         MitoFilter() %>% 
+         NormalizeData(normalization.method = "LogNormalize", assay = "RNA", scale.factor = 10000) %>% 
+         NormalizeData(verbose = FALSE, assay = "ADT", normalization.method = "CLR") %>%
+         FindVariableFeatures(selection.method = "vst", nfeatures = 2000) %>%
+         ScaleData() %>% 
+         RunPCA(npcs = 30)
+
+```
+
+### Selecting the appropriate number of Principal Components for UMAP reduction
+```{r PC_Selection_seqapart, message = FALSE}
+## Identify correct numbers of PCs
+## (Takes up to 5 minutes. Not run while rendering vignette for time)
+
+# PBMCs.pca.test <- TestPCA(PBMCs)
+# PBMCs.pca.test[, 1:20]
+
+## 15 PCs with z > 1
+## Proceed with 15 PCs for dimensional reduction & clustering
+## Visualize PCs plotted by standard deviation:
+ElbowPlot(PBMCs)
+```
+
+### Generating a UMAP and clusters
+```{r Clustering_seqapart, message = FALSE}
+PBMCs <- PBMCs %>% 
+         RunUMAP(reduction = "pca", dims = 1:15) %>%
+         FindNeighbors(reduction = "pca", dims = 1:15) %>%
+         FindClusters(resolution = .8)
+
+UMAPPlot(PBMCs, cols = colors.use, group.by = "orig.ident") + ggtitle("Default Workflow")
+```
 
 
+### Measuring sample-UMAP integration (generating an iLISI score)
+```{r iLISI_seqapart}
+GetiLISI(object = PBMCs, nSamples = 2)
+```
+
+## Cell Typing of joint PBMCs object for CMS
+### Convert cluster classifications to cell type classifications
+```{r Cluster_assignment_seqapart, message = F}
+# For complete cell classification workflow see our vignette "Biaxial Gating of a Single Sample"
+# More details can be found in figure S3 of our manuscript "Data Matrix Normalization and Merging Strategies Minimize Batch-specific Systemic Variation in scRNA-Seq Data."
+UMAPPlot(PBMCs, cols = colors.use, pt.size = 2, 
+         group.by = "seurat_clusters", label = T)
+# B_Naive = 6
+# B_Memory = 10, 16
+# T_CD4 = 0, 1, 2, 15, 18
+# TReg not a unique cluster (contained within cluster 2)
+# T_CD8 = 8, 11
+# NK_T = 4, 5
+# NK = 3, 7
+# NK_CD56Hi not a unique cluster (contained within cluster 2)
+# Monocyte_Classical = 9
+# Monocyte_NonClassical = 12
+# Dendritic_Cells = 13, 14
+# HSPCs = 17
+Idents(PBMCs) <- PBMCs[["seurat_clusters"]]
+Idents(PBMCs) <- plyr::mapvalues(Idents(PBMCs), from = c(6, 10, 16, 
+                                                         0, 1, 2, 15, 18,
+                                                         8, 11, 4, 5,
+                                                         3, 7, 9, 12,
+                                                         13, 14, 17), 
+                to = c('B_Naive', 'B_Memory', 'B_Memory', 
+                       'T_CD4', 'T_CD4', 'T_CD4', 'T_CD4', 'T_CD4',
+                       'T_CD8', 'T_CD8', 'NK_T', 'NK_T',
+                       'NK', 'NK', 'Monocyte_Classical', 'Monocyte_NonClassical',
+                       'Dendritic_Cells', 'Dendritic_Cells', 'HSPCs'))
+Idents(PBMCs) <- factor(Idents(PBMCs),
+                        levels = c("B_Naive", "B_Memory", "T_CD4", "TReg",
+                                   "T_CD8", "NK_T", "NK", "NK_CD56Hi",
+                                   "Monocyte_Classical", "Monocyte_NonClassical",
+                                   "Dendritic_Cells", "HSPCs", "Cycling_Cells"))
+PBMCs[["Cell_Type"]] <- Idents(PBMCs)
+UMAPPlot(PBMCs, cols = colors.use, label = F) + ggtitle("Cell Type Classifications")
+```
+
+### Compare single-sample workflow cell type classifications to joint classifications (generating a CMS)
+```{r CMS_seqapart}
+# PBMC Sample 4-B
+data(package = 'BatchNorm', PBMC4B_Single_ID)
+S4Bcms <- GetCMS(object = PBMCs, 
+                sample.ID = "Sample_4B", 
+                reference.ID = PBMC4B_Single_ID)
+# PBMC Sample 5-A
+data(package = 'BatchNorm', PBMC5A_Single_ID)
+S5Acms <- GetCMS(object = PBMCs, 
+                sample.ID = "Sample_5A", 
+                reference.ID = PBMC5A_Single_ID)
+
+# Average CMS
+mean(c(S4Bcms, S5Acms))
+```
+
+# Same Sequencing Pool ("sequenced together")
+## Processing the Seurat Objects 4-A & 5-A
+### Data filtering & normalization
+```{r inital_processing_seqtogether, message = FALSE}
+library(BatchNorm)
+
+# Import unfiltered Seurat PBMC4 object & extract "4A" (included with 'BatchNorm' package)
+data(package = 'BatchNorm', PBMC4)
+Idents(PBMC4) <- PBMC4[["orig.ident"]]
+PBMC4A <- subset(PBMC4, idents = "Sample_4A")
+# Import unfiltered Seurat PBMC5 object & extract "5A" (included with 'BatchNorm' package)
+data(package = 'BatchNorm', PBMC5)
+Idents(PBMC5) <- PBMC5[["orig.ident"]]
+PBMC5A <- subset(PBMC5, idents = "Sample_5A")
+# Merge "sequenced together" samples into a single object and remove unnecessry objects from the workspace
+PBMCs <- merge(PBMC4A, y = PBMC5A)
+rm(list = c('PBMC4', 'PBMC5', 'PBMC4A', 'PBMC5A'))
+
+# Run "standard" Seurat workflow: 
+# Including filtering by mitochondrial percentage (+5 SD)
+# Including data normalization, variable gene selection and gene scaling (performed on all samples together)
+PBMCs <- PBMCs %>% 
+         MitoFilter() %>% 
+         NormalizeData(normalization.method = "LogNormalize", assay = "RNA", scale.factor = 10000) %>% 
+         NormalizeData(verbose = FALSE, assay = "ADT", normalization.method = "CLR") %>%
+         FindVariableFeatures(selection.method = "vst", nfeatures = 2000) %>%
+         ScaleData() %>% 
+         RunPCA(npcs = 30)
+
+```
+
+### Selecting the appropriate number of Principal Components for UMAP reduction
+```{r PC_Selection_seqtogether, message = FALSE}
+## Identify correct numbers of PCs
+## (Takes up to 5 minutes. Not run while rendering vignette for time)
+
+# PBMCs.pca.test <- TestPCA(PBMCs)
+# PBMCs.pca.test[, 1:20]
+
+## 14 PCs with z > 1
+## Proceed with 14 PCs for dimensional reduction & clustering
+## Visualize PCs plotted by standard deviation:
+ElbowPlot(PBMCs)
+```
+
+### Generating a UMAP and clusters
+```{r Clustering_seqtogether, message = FALSE}
+PBMCs <- PBMCs %>% 
+         RunUMAP(reduction = "pca", dims = 1:14) %>%
+         FindNeighbors(reduction = "pca", dims = 1:14) %>%
+         FindClusters(resolution = .8)
+
+UMAPPlot(PBMCs, cols = colors.use, group.by = "orig.ident") + ggtitle("Default Workflow")
+```
+
+
+### Measuring sample-UMAP integration (generating an iLISI score)
+```{r iLISI_seqtogether}
+GetiLISI(object = PBMCs, nSamples = 2)
+```
+
+## Cell Typing of joint PBMCs object for CMS
+### Convert cluster classifications to cell type classifications
+```{r Cluster_assignment_seqtogether, message = F}
+# For complete cell classification workflow see our vignette "Biaxial Gating of a Single Sample"
+# More details can be found in figure S3 of our manuscript "Data Matrix Normalization and Merging Strategies Minimize Batch-specific Systemic Variation in scRNA-Seq Data."
+UMAPPlot(PBMCs, cols = colors.use, pt.size = 2, 
+         group.by = "seurat_clusters", label = T)
+# B_Naive = 7
+# B_Memory = 11, 18
+# T_CD4 = 0, 1, 3, 4, 16
+# TReg = 13, 19
+# T_CD8 = 9, 12
+# NK_T = 5, 6
+# NK = 2, 8
+# NK_CD56Hi not a unique cluster (contained within cluster 2)
+# Monocyte_Classical = 10
+# Monocyte_NonClassical = 14
+# Dendritic_Cells = 15, 17
+# HSPCs = 20
+Idents(PBMCs) <- PBMCs[["seurat_clusters"]]
+Idents(PBMCs) <- plyr::mapvalues(Idents(PBMCs), from = c(7, 11, 18, 0, 1, 3, 4, 16,
+                                                         13, 19, 9, 12, 5, 6,
+                                                         2, 8, 10, 14,
+                                                         15, 17, 20), 
+                to = c('B_Naive', 'B_Memory', 'B_Memory', 'T_CD4', 'T_CD4', 'T_CD4', 'T_CD4', 'T_CD4',
+                       'TReg', 'TReg', 'T_CD8', 'T_CD8', 'NK_T', 'NK_T',
+                       'NK', 'NK', 'Monocyte_Classical', 'Monocyte_NonClassical',
+                       'Dendritic_Cells', 'Dendritic_Cells', 'HSPCs'))
+Idents(PBMCs) <- factor(Idents(PBMCs),
+                        levels = c("B_Naive", "B_Memory", "T_CD4", "TReg",
+                                   "T_CD8", "NK_T", "NK", "NK_CD56Hi",
+                                   "Monocyte_Classical", "Monocyte_NonClassical",
+                                   "Dendritic_Cells", "HSPCs", "Cycling_Cells"))
+PBMCs[["Cell_Type"]] <- Idents(PBMCs)
+UMAPPlot(PBMCs, cols = colors.use, label = F) + ggtitle("Cell Type Classifications")
+```
+
+### Compare single-sample workflow cell type classifications to joint classifications (generating a CMS)
+```{r CMS_seqtogether}
+# PBMC Sample 4-A
+data(package = 'BatchNorm', PBMC4A_Single_ID)
+S4Acms <- GetCMS(object = PBMCs, 
+                sample.ID = "Sample_4A", 
+                reference.ID = PBMC4A_Single_ID)
+# PBMC Sample 5-A
+data(package = 'BatchNorm', PBMC5A_Single_ID)
+S5Acms <- GetCMS(object = PBMCs, 
+                sample.ID = "Sample_5A", 
+                reference.ID = PBMC5A_Single_ID)
+
+# Average CMS
+mean(c(S4Acms, S5Acms))
 ```
