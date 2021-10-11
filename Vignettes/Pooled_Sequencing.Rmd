@@ -1,0 +1,27 @@
+---
+title: "Pooled Sequencing (Figure 3)"
+author: "Benjamin R Babcock"
+output: rmarkdown::html_vignette
+description: >
+  How to determine if pooling samples to sequence simultaneously can improve sequencing? scRNA-Seq libraries from two different donors, sequenced to similar depth (Samples 4-A, 4-B and 5-A) were either sequenced at the same time ("sequenced together" samples 4-A & 5-A) or at different times ("sequenced separately" samples 4-B & 5-A). The full results of this test are described in our published Figure 3.
+vignette: >
+  %\VignetteIndexEntry{Pooled Sequencing (Figure 3)}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+```{r packages, include=F}
+library(knitr)
+library(dplyr)
+library(Seurat)
+library(ggplot2)
+library(lisi)
+opts_chunk$set(
+  fig.pos = "!h", out.extra = "", warning = F, 
+  fig.align = "center", fig.height = 7, fig.width = 7
+)
+```
+
+```{r}
+
+
+```
