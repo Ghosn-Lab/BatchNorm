@@ -25,7 +25,7 @@ To reproduce the results and figures as presented in the manuscript, you can vie
 ## References
 <a id="1">[1]</a> 
 Babcock, B. R. *et al.*  
-Data Matrix Normalization and Merging Strategies Minimize Batch-specific Systemic Variation in scRNA-Seq Data 
+Data Matrix Normalization and Merging Strategies Minimize Batch-specific Systemic Variation in scRNA-Seq Data.
 *bioRxiv* (2021) 
 **DOI:**  https://doi.org/10.1101/2021.08.18.456898
 
