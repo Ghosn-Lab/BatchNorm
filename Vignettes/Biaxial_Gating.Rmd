@@ -25,9 +25,11 @@ opts_chunk$set(
 ## Data filtering & normalization
 ```{r inital_processing, message = FALSE}
 library(BatchNorm)
-
-# Import unfiltered Seurat object (included with 'BatchNorm' package)
-data(PBMC4A)
+# Import unfiltered Seurat PBMC4 object & extract "4A" (included with 'BatchNorm' package)
+data(package = 'BatchNorm', PBMC4)
+Idents(PBMC4) <- PBMC4[["orig.ident"]]
+PBMC4A <- subset(PBMC4, idents = "Sample_4A")
+rm(PBMC4)
 
 # Run "standard" Seurat workflow
 PBMC4A <- PBMC4A %>% 
@@ -39,12 +41,15 @@ PBMC4A <- PBMC4A %>%
 ```
 ## Selecting the appropriate number of Principal Components for UMAP reduction
 ```{r PC_Selection, message = FALSE}
-# Identify correct numbers of PCs
-PBMC4A.pca.test <- TestPCA(object = PBMC4A)
-PBMC4A.pca.test[, 1:20]
-# 16 PCs with a z-score > 1
-# Proceed with 16 PCs for dimensional reduction & clustering
-# Visualize PCs plotted by standard deviation:
+## Identify correct numbers of PCs
+## (Takes up to 5 minutes. Not run while rendering vignette for time)
+
+# PBMC4A.pca.test <- TestPCA(object = PBMC4A)
+# PBMC4A.pca.test[, 1:20]
+
+## 16 PCs with a z-score > 1
+## Proceed with 16 PCs for dimensional reduction & clustering
+## Visualize PCs plotted by standard deviation:
 ElbowPlot(PBMC4A)
 ```
 ## Selecting the appropriate number of Principal Components for UMAP reduction
