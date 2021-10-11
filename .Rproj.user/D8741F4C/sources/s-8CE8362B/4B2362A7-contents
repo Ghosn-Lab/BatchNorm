@@ -1,0 +1,48 @@
+library(roxygen2)
+library(pkgdown)
+
+install.packages("pkgdown")
+install.packages("BatchNorm")
+devtools::install_github("r-lib/pkgdown")
+
+usethis::use_package("lisi")
+devtools::document()
+
+usethis::use_gpl3_license()
+devtools::install()
+
+usethis::use_pkgdown_github_pages()
+pkgdown::build_site()
+pkgdown::build_articles()
+pkgdown::build_home()
+
+pkgdown::deploy_to_branch(github_pages = T)
+
+# usethis::use_github_action("pkgdown")
+
+fh <- "~/OneDrive - Emory University/Ghosn_Lab/Batch/Workflow/Data/Export/PBMCSample4.A.rds"
+PBMC4A <- readRDS(file = fh)
+usethis::use_data(PBMC4A, overwrite = TRUE)
+usethis::use_data(PBMC4, overwrite = TRUE)
+usethis::use_data(PBMC5)
+
+rm(PBMC4A)
+data(PBMC4A)
+
+usethis::use_data(colors.use)
+PBMCs <- readRDS("~/PBMCs.rds")
+
+PBMC1_Single_ID <- readRDS("~/OneDrive - Emory University/Ghosn_Lab/Batch/Workflow/Data/PBMC.1.CellType.rds")
+PBMC2_Single_ID <- readRDS("~/OneDrive - Emory University/Ghosn_Lab/Batch/Workflow/Data/PBMC.2.CellType.rds")
+PBMC3_Single_ID <- readRDS("~/OneDrive - Emory University/Ghosn_Lab/Batch/Workflow/Data/PBMC.3.CellType.rds")
+PBMC4A_Single_ID <- readRDS("~/OneDrive - Emory University/Ghosn_Lab/Batch/Workflow/Data/PBMC.4A.CellType.rds")
+PBMC4B_Single_ID <- readRDS("~/OneDrive - Emory University/Ghosn_Lab/Batch/Workflow/Data/PBMC.4B.CellType.rds")
+
+usethis::use_data(PBMCs, overwrite = TRUE)
+usethis::use_data(PBMC1_Single_ID)
+usethis::use_data(PBMC2_Single_ID)
+usethis::use_data(PBMC3_Single_ID)
+usethis::use_data(PBMC4A_Single_ID)
+usethis::use_data(PBMC4B_Single_ID)
+usethis::use_data(PBMC5A_Single_ID)
+usethis::use_data(PBMC5B_Single_ID)

@@ -1,0 +1,52 @@
+"0","```r
+potential.vj.neutralizing <- which(TotalPT@meta.data$IGH_VJ == \"ighj6_ighv3-53\")
+potential.vj.neutralizing <- rownames(TotalPT@meta.data)[potential.vj.neutralizing]
+
+TotalPT@meta.data$Lineage_ID <- paste(TotalPT@meta.data$orig.ident, TotalPT@meta.data$Lineage_ID, sep = \"_\")
+length(TotalPT@meta.data[potential.vj.neutralizing, \"Lineage_ID\"])
+duplicated_lineages <- which(duplicated(TotalPT@meta.data[potential.vj.neutralizing, \"Lineage_ID\"]))
+TotalPT@meta.data[potential.vj.neutralizing, \"Lineage_ID\"][duplicated_lineages]
+
+\"PID4101_3969\"  \"PID4128V_1385\"
+
+
+order.clones <- order(PID4128V@meta.data[, \"Lineage_Freq\"], decreasing = T)
+CDR3.df <- PID4128V@meta.data[order.clones, c(\"Lineage_ID\", \"Lineage_Freq\", \"IGH_VJ\")]
+# Read filtered adt matrix for vaccinated patient PID4128V
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4128V/Filtered'), 
+                    gene.column = 2, unique.features = TRUE)
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+colnames(adt.fil) <- paste('PID4128V', colnames(adt.fil), sep = \"_\")
+adt.fil <- adt.fil[c('CoV2_RBD_TotalSeqC', 'CoV2_S1_TotalSeqC', 'CoV2_S2_TotalSeqC',
+                     'CoV2_N_TotalSeqC','Mem_TotalSeqC','Env_TotalSeqC',
+                     'Orf3a_TotalSeqC', 'Orf3b_TotalSeqC', 'Orf7b_TotalSeqC',
+                     'Orf8_TotalSeqC', 'Orf9c_TotalSeqC','NSP1_TotalSeqC',
+                     'NSP7_TotalSeqC', 'NSP10_TotalSeqC'), ]
+CDR3.df$Lineage_ID <- paste('PID4128V', CDR3.df$Lineage_ID, sep = \"_\")
+
+potential.cells <- which(adt.fil[\"Env_TotalSeqC\", ] > 25)
+potential.cells <- colnames(adt.fil)[potential.cells]
+potential.cells <- intersect(potential.cells, rownames(CDR3.df[which(CDR3.df$Lineage_ID == \"PID4128V_1385\"), ]))
+
+for(ag in rownames(adt.fil)){
+    VJ.gene <- CDR3.df[potential.cells, \"IGH_VJ\"]
+    potential.df <- adt.fil[, rownames(CDR3.df[which(CDR3.df$Lineage_ID == \"PID4128V_1385\"), ])]
+    adt.frame <- data.frame(cells = colnames(adt.fil), nUMI = adt.fil[ag, ])
+    potential.frame <- data.frame(cells = colnames(potential.df), nUMI = potential.df[ag, ])
+    potential.frame$color <- \"2\"
+    potential.frame[potential.cells, \"color\"] <- \"1\"
+    p1 <- ggplot(adt.frame, aes(x = nUMI)) +
+      geom_histogram(binwidth = 1) +
+      geom_point(data = potential.frame, aes(x = nUMI, y = 50, color = color),
+                 position = position_jitter(width = 0, height = 25)) + 
+      scale_color_manual(values = colors.use) +
+      coord_cartesian(xlim = c(0, 100), ylim = c(0, 1000)) +
+      theme(legend.position = \"none\") +
+      ggtitle(\"Vaccinated PT / clone PID128V_1385 / \\"Potential\\" cells\") +
+      xlab(paste(ag, \"Antigen nUMI\")) + ylab(\"Frequency\")
+    ggsave(paste0(\"./Figures/Clonal_ADT/All_Ags/PID4128V/Potential_\", ag, \"_PID4128V_1385.pdf\"), p1, width = 7, height = 7)
+}
+
+
+
+```"

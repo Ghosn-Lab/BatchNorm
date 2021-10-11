@@ -1,0 +1,125 @@
+"0","```r
+TotalPT <- readRDS(\"./Data/TotalPT_VDJ.rds\")
+d <- as.data.frame(FetchData(object = TotalPT, 
+                   vars = c(\"adt_CD19\", \"adt_CD20\")))
+## Format colnames to match FeatureScatter syntax
+colnames(d) <- c(\"adt_CD20\", \"adt_CD19\")
+p <- FeatureScatter(TotalPT, \"adt_CD20\", \"adt_CD19\",
+                    cols = colors.use, plot.cor = F) +
+     geom_density2d(data = d, color = \"black\", size = 1) +
+     theme_gray() + theme(legend.position = \"none\") +
+     labs(x = \"CD20 (ADT)\", 
+          y = \"CD19 (ADT)\")
+p
+ggsave(\"./Figures/TotalPT_CD20_CD19.pdf\", p)
+
+d <- as.data.frame(FetchData(object = TotalPT, 
+                   vars = c(\"adt_CD38\", \"adt_CD27\")))
+## Format colnames to match FeatureScatter syntax
+colnames(d) <- c(\"adt_CD38\", \"adt_CD27\")
+p <- FeatureScatter(TotalPT, \"adt_CD38\", \"adt_CD27\",
+                    cols = colors.use, plot.cor = F) +
+     geom_density2d(data = d, color = \"black\", size = 1) +
+     theme_gray() +
+     labs(x = \"CD38 (ADT)\", 
+          y = \"CD27 (ADT)\")
+p
+ggsave(\"./Figures/TotalPT_CD38_CD27.pdf\", p)
+
+
+d <- as.data.frame(FetchData(object = TotalPT, 
+                   vars = c(\"CD38\", \"CD27\")))
+## Format colnames to match FeatureScatter syntax
+colnames(d) <- c(\"CD38\", \"CD27\")
+p <- FeatureScatter(TotalPT, \"CD38\", \"CD27\",
+                    cols = colors.use, plot.cor = F) +
+     geom_density2d(data = d, color = \"black\", size = 1) +
+     theme_gray() +
+     labs(x = \"CD38 (RNA)\", 
+          y = \"CD27 (RNA)\")
+p
+ggsave(\"./Figures/TotalPT_CD38_CD27.pdf\", p)
+
+d <- as.data.frame(FetchData(object = TotalPT, 
+                   vars = c(\"CD79A\", \"nCount_VDJ\")))
+## Format colnames to match FeatureScatter syntax
+colnames(d) <- c(\"CD79A\", \"nCount_VDJ\")
+p <- FeatureScatter(TotalPT, \"CD79A\", \"nCount_VDJ\",
+                    cols = colors.use, plot.cor = F) +
+     geom_density2d(data = d, color = \"black\", size = 1) +
+     theme_gray() + ggcyto::scale_y_flowjo_biexp() + 
+     labs(x = \"CD79A (RNA)\", 
+          y = \"nCount_VDJ (UMI), biexponential\") +
+  geom_polygon(data = data.frame(CD79A = c(1, 4.5, 4.5, 0, 0), 
+                                 nCount_VDJ = c(500, 1000, 30000, 30000, 500)),
+               aes(colour=\"gate\"), fill=NA) + scale_color_manual(values = c(\"black\", colors.use))
+p
+ggsave(\"./Figures/TotalPT_CD79A_nCount_VDJ.pdf\", p)
+
+d <- as.data.frame(FetchData(object = B.cells, 
+                   vars = c(\"adt_IgD\", \"adt_CD27\")))
+## Format colnames to match FeatureScatter syntax
+colnames(d) <- c(\"adt_IgD\", \"adt_CD27\")
+p <- FeatureScatter(B.cells, \"adt_IgD\", \"adt_CD27\",
+                    cols = colors.use, plot.cor = F) +
+     geom_density2d(data = d, color = \"black\", size = 1) +
+     theme_gray() +
+     labs(x = \"adt_IgD (ADT)\", 
+          y = \"adt_CD27 (ADT)\") 
+p
+ggsave(\"./Figures/B.cells_IgD_CD27.pdf\", p)
+
+d <- as.data.frame(FetchData(object = B.cells, 
+                   vars = c(\"IGHD\", \"CD27\")))
+## Format colnames to match FeatureScatter syntax
+colnames(d) <- c(\"IGHD\", \"CD27\")
+p <- FeatureScatter(B.cells, \"IGHD\", \"CD27\",
+                    cols = colors.use, plot.cor = F) +
+     geom_density2d(data = d, color = \"black\", size = 1) +
+     theme_gray() +
+     labs(x = \"IGHD (RNA)\", 
+          y = \"CD27 (RNA)\") 
+p
+ggsave(\"./Figures/B.cells_IgD_CD27_RNA.pdf\", p)
+
+
+plasma.cells <- WhichCells(TotalPT, expression = `nCount_VDJ` >= 500)
+B.cells <- subset(TotalPT, `nCount_VDJ` < 500)
+TotalPT@meta.data$is.plasma.cell <- rep(F, nrow(TotalPT@meta.data))
+TotalPT@meta.data[plasma.cells, \"is.plasma.cell\"] <- T
+
+TotalPT <- TotalPT %>%
+           FindVariableFeatures(selection.method = \"vst\", nfeatures = 2000) %>%
+           ScaleData() %>% 
+           RunPCA(npcs = 30)
+# Identify correct numbers of PCs
+ TotalPT.pca.test <- TestPCA(TotalPT)
+ TotalPT.pca.test[, 1:20]
+# 12 PCs with z > 1
+ rm(TotalPT.pca.test)
+
+TotalPT <- TotalPT %>% 
+           RunUMAP(reduction = \"pca\", dims = 1:12) %>%
+           FindNeighbors(reduction = \"pca\", dims = 1:12) %>%
+           FindClusters(resolution = .8)
+
+
+GetLISI <- function(object, nSamples) {
+  coords <- object@reductions$umap@cell.embeddings
+  sample_cats <- data.frame(\"orig.ident\" = object@meta.data$orig.ident)
+  res <- lisi::compute_lisi(coords, sample_cats, c('orig.ident'))
+  sample.lisi <- median(res$orig.ident)
+  adjusted.lisi <- (sample.lisi - 1) / (nSamples - 1)
+  return(adjusted.lisi)
+}
+
+GetLISI(object = TotalPT, nSamples = 8)
+# 0.416781 (iLISI = 0.583219)
+# Sex iLISI = 1
+
+DimPlot(TotalPT, group.by = \"sex\")
+ggsave(\"./Figures/Standard_TotalPT_Sex_UMAP.pdf\")
+
+DimPlot(TotalPT, group.by = \"orig.ident\")
+ggsave(\"./Figures/Standard_TotalPT_orig.ident_UMAP.pdf\")
+```"

@@ -1,0 +1,17 @@
+"0","```r
+for(id in unique(BNv$Vaxx)){
+  s1 <- subset(BNv, idents = id)
+  s1.df <- count(s1$activated)
+  s1.df$freq <- s1.df$freq/sum(s1.df$freq)*100
+  ggplot(data = s1.df, aes(x = \"\", y = freq, fill = x), ) +
+    geom_col() +
+  coord_polar(\"y\", start=0) + 
+    scale_fill_manual(values = colors.use) +
+    ggtitle(paste0(id, \": Naive B Cells Cluster Composition\")) + 
+    theme_void()
+  ggsave(paste0(\"./Figures/BNv_\", id, \"_ActivatedNaive_Composition.pdf\"))
+}
+
+```"
+"1","Saving 7 x 7 in image
+"

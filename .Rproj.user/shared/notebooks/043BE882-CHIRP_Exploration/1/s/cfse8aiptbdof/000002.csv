@@ -1,0 +1,172 @@
+"0","```r
+library(Matrix)
+library(Seurat)
+```"
+"1","Attaching SeuratObject
+"
+"0","```r
+library(dplyr)
+```"
+"1","
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+"
+"0","```r
+library(plyr)
+```"
+"1","----------------------------------------------------------------------------------------------------------------------------
+You have loaded plyr after dplyr - this is likely to cause problems.
+If you need functions from both plyr and dplyr, please load plyr first, then dplyr:
+library(plyr); library(dplyr)
+----------------------------------------------------------------------------------------------------------------------------
+
+Attaching package: ‘plyr’
+
+The following objects are masked from ‘package:dplyr’:
+
+    arrange, count, desc, failwith, id, mutate, rename, summarise, summarize
+"
+"0","```r
+library(ggcyto)
+```"
+"1","Loading required package: ggplot2
+Loading required package: flowCore
+
+Attaching package: ‘flowCore’
+
+The following object is masked from ‘package:Matrix’:
+
+    %&%
+
+Loading required package: ncdfFlow
+Loading required package: RcppArmadillo
+Loading required package: BH
+Loading required package: flowWorkspace
+As part of improvements to flowWorkspace, some behavior of
+GatingSet objects has changed. For details, please read the section
+titled \"The cytoframe and cytoset classes\" in the package vignette:
+
+  vignette(\"flowWorkspace-Introduction\", \"flowWorkspace\")
+"
+"0","```r
+library(RColorBrewer)
+library(cowplot)
+library(scRepertoire)
+library(circlize)
+```"
+"1","========================================
+circlize version 0.4.13
+CRAN page: https://cran.r-project.org/package=circlize
+Github page: https://github.com/jokergoo/circlize
+Documentation: https://jokergoo.github.io/circlize_book/book/
+
+If you use it in published research, please cite:
+Gu, Z. circlize implements and enhances circular visualization
+  in R. Bioinformatics 2014.
+
+This message can be suppressed by:
+  suppressPackageStartupMessages(library(circlize))
+========================================
+"
+"0","```r
+library(scales)
+library(viridis)
+```"
+"1","Loading required package: viridisLite
+
+Attaching package: ‘viridis’
+
+The following object is masked from ‘package:scales’:
+
+    viridis_pal
+"
+"0","```r
+# Set data directory
+dd <- \"~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/UCSF/\"
+colors.use <- c(brewer.pal(8, 'Set1')[c(1:5,7:8)], brewer.pal(7, 'Dark2'),  'blue4', 'orangered', 'orangered4', c(brewer.pal(12, 'Paired'), brewer.pal(6, 'Accent'))[c(1:10, 12, 15:20)])
+emory.cols <- c(\"#00aeef\",\"#41b6e6\",\"#487f84\",\"#348338\",\"#006c5b\",\"#5c8118\",\"#c35413\",\"#da291c\",\"#c6007e\",\"#6558b1\",\"#6d2077\",\"#000000\")
+
+# Function to z-score each PC's percentage of the total variance captured
+TestPCA <- function(object = NULL, 
+                    genes.use = object@assays$RNA@var.features,
+                    mtx.use = object@assays$RNA@scale.data){
+  data.use <- mtx.use[genes.use, ]
+  pca.results <- svd(x = t(data.use))
+  sdev <- pca.results$d/sqrt(max(1, ncol(data.use) - 1))
+  PCVariance <- rbind(SD = sdev,
+                      Proportion = (sdev^2)/sum(sdev^2), 
+                      Cumulative = cumsum(sdev^2)/sum(sdev^2))
+  m <- mean(PCVariance['Proportion', ])
+  s <- sd(PCVariance['Proportion', ])
+  PCVariance <- rbind(PCVariance, 
+                      ZScore = (PCVariance['Proportion', ] - m)/s)
+  return(PCVariance)
+}
+# Function to select mitochondrial percent by X Std Dev above median
+MitoFilter <- function(obj){
+  max.mito <<- 5*sd(obj$percent.mito) + median(obj$percent.mito)
+  obj <- obj %>% subset(percent.mito < max.mito) %>% subset(nFeature_RNA > 100)
+  return(obj)
+  rm(max.mito)
+}
+
+
+
+#### For FeaturePlot() ####
+# Function to pseudo customize FeaturePlots
+customize_Seurat_FeaturePlot <- function(p, alpha.use = 1, gradient.use = c(\"yellow\", \"red\"), expression.threshold = 0, is.log1p.transformed = F) {
+  
+  #### Main function ####
+  main_function <- function(p = p, alpha.use = alpha.use, gradient.use = gradient.use, expression.threshold = expression.threshold, is.log1p.transformed = is.log1p.transformed) {
+    
+    # Order data by gene expresion level
+    p$data <- p$data[order(p$data$gene),]
+    
+    # Define lower limit of gene expression level
+    if (isTRUE(is.log1p.transformed)) {
+      expression.threshold <- expression.threshold
+    } else {
+      expression.threshold <- log1p(expression.threshold)
+    }
+    
+    # Compute maximum value in gene expression
+    max.exp <- max(p$data$gene)
+    
+    # Fill points using the gene expression levels
+    p$layers[[1]]$mapping$fill <- p$layers[[1]]$mapping$colour
+    
+    # Define transparency of points
+    p$layers[[1]]$mapping$alpha <- alpha.use
+    
+    # Change fill and colour gradient values
+    p <- p + scale_colour_gradientn(colours = gradient.use, guide = F, limits = c(expression.threshold, max.exp), na.value = \"grey\") +
+      scale_fill_gradientn(colours = gradient.use, name = expression(atop(Expression, (log))), limits = c(expression.threshold, max.exp), na.value = \"grey\") +
+      scale_alpha_continuous(range = alpha.use, guide = F)
+  }
+  
+  #### Execution of main function ####
+  # Apply main function on all features
+  p <- lapply(X = p, alpha.use = alpha.use, gradient.use = gradient.use, 
+              expression.threshold = expression.threshold, is.log1p.transformed = is.log1p.transformed,
+              FUN = main_function)
+  
+  # Arrange all plots using cowplot
+  # Adapted from Seurat
+  # https://github.com/satijalab/seurat/blob/master/R/plotting.R#L1100
+  # ncol argument adapted from Josh O'Brien
+  # https://stackoverflow.com/questions/10706753/how-do-i-arrange-a-variable-list-of-plots-using-grid-arrange
+  cowplot::plot_grid(plotlist = p, ncol = ceiling(sqrt(length(p))))
+}
+
+# Correcting VDJ matrix barcodes to Seurat format
+rearrange.BC <- function(x){
+  toupper(trimws(unlist(lapply(strsplit(x, \"-\"), '[[', 1))))
+}
+```"

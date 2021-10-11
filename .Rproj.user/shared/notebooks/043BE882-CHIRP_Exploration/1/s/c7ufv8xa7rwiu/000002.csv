@@ -1,0 +1,47 @@
+"0","```r
+TotalPT <- readRDS(\"./Data/TotalPT_VDJ.rds\")
+Idents(TotalPT) <- TotalPT[[\"orig.ident\"]]
+
+PID4134 <- subset(TotalPT, idents = \"PID4134\")
+
+
+order.clones <- order(PID4134@meta.data[, \"Lineage_Freq\"], decreasing = T)
+CDR3.df <- PID4134@meta.data[order.clones, c(\"Lineage_ID\", \"Lineage_Freq\", \"IGH_VJ\")]
+# Read filtered adt matrix for vaccinated patient PID4134
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4134/Filtered'), 
+                    gene.column = 2, unique.features = TRUE)
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+colnames(adt.fil) <- paste('PID4134', colnames(adt.fil), sep = \"_\")
+adt.fil <- adt.fil[c('CoV2-RBD_TotalSeqC', 'CoV2-S1_TotalSeqC', 'CoV2-S2_TotalSeqC',
+                     'CoV2-N_TotalSeqC','Mem_TotalSeqC','Env_TotalSeqC',
+                     'Orf3a_TotalSeqC', 'Orf3b_TotalSeqC', 'Orf7b_TotalSeqC',
+                     'Orf8_TotalSeqC', 'Orf9c_TotalSeqC','NSP1_TotalSeqC',
+                     'NSP7_TotalSeqC', 'NSP10_TotalSeqC'), ]
+CDR3.df$Lineage_ID <- paste('PID4134', CDR3.df$Lineage_ID, sep = \"_\")
+
+for(ag in rownames(adt.fil)){
+  for(l in 1:sum(count(CDR3.df$Lineage_ID)$freq > 2)){
+    lineageID <- unique(CDR3.df$Lineage_ID)[l]
+    lineage.cells <- rownames(CDR3.df[which(CDR3.df$Lineage_ID == lineageID), ])
+    VJ.gene <- CDR3.df[which(CDR3.df$Lineage_ID == lineageID), \"IGH_VJ\"]
+    lineage.df <- adt.fil[, lineage.cells]
+    adt.frame <- data.frame(cells = colnames(adt.fil), nUMI = adt.fil[ag, ])
+    lineage.frame <- data.frame(cells = colnames(lineage.df), nUMI = lineage.df[ag, ])
+    p1 <- ggplot(adt.frame, aes(x = nUMI)) +
+      geom_histogram(binwidth = 1) +
+      geom_point(data = lineage.frame, aes(x = nUMI, y = 50, color = \"x\"),
+                 position = position_jitter(width = 0, height = 25)) + 
+      scale_color_manual(values = colors.use[2]) +
+      coord_cartesian(xlim = c(0, 100), ylim = c(0, 1000)) +
+      theme(legend.position = \"none\") +
+      ggtitle(paste(\"Infected PT, clone ID =\", lineageID, \";\", ncol(lineage.df), \"cells\n\", unique(VJ.gene))) +
+      xlab(paste(ag, \"Antigen nUMI\")) + ylab(\"Frequency\")
+    ggsave(paste0(\"./Figures/Clonal_ADT/All_Ags/PID4134/\", ag, \"_\", lineageID, \".pdf\"), p1, width = 7, height = 7)
+  }
+}
+range(adt.fil[\"CoV2-S2_TotalSeqC\", ])
+
+\"PID4134_423\"
+
+PID4XXXV@meta.data[which(PID4XXXV@meta.data$Lineage_ID == \"546\"), \"CDR3\"]
+```"

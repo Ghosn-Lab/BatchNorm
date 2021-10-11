@@ -1,0 +1,14 @@
+"0","```r
+results <- read.csv(\"~/Downloads/PubMed_Timeline_Results_by_Year.csv\",header = T)
+p <- ggplot(data = results, aes(x = Year, y = Count, fill = Count)) +
+     ggtitle(\"\\"Single Cell RNA\\" Pubmed Results by Year, 1999-2020\") +
+     geom_bar(stat = \"identity\") + 
+     coord_cartesian(xlim = c(2000, 2020)) +
+     theme_minimal() +
+     theme(legend.position = \"none\", plot.title.position = \"plot\") + 
+     ylab(\"Citations\") +
+     scale_fill_gradient(low = emory.cols[3], high = emory.cols[1])
+p
+ggsave(\"~/OneDrive - Emory University/Ghosn_Lab/Batch/Workflow/Figures/Named_Figures/SupplementarFigure01\")
+rm(list = c('results', 'p'))
+```"

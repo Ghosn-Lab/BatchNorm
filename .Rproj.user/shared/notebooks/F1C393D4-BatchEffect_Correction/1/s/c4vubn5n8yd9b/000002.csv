@@ -1,0 +1,23 @@
+"0","# PBMC Sample 1
+data(PBMC1_Single_ID)
+S1cms <- GetCMS(object = PBMCs, 
+                sample.ID = ""Sample_01"", 
+                reference.ID = PBMC1_Single_ID)
+# PBMC Sample 2
+data(PBMC2_Single_ID)
+S2cms <- GetCMS(object = PBMCs, 
+                sample.ID = ""Sample_02"", 
+                reference.ID = PBMC2_Single_ID)
+# PBMC Sample 3
+data(PBMC3_Single_ID)
+S3cms <- GetCMS(object = PBMCs,
+                sample.ID = ""Sample_03"",
+                reference.ID = PBMC3_Single_ID)
+
+# Average CMS
+mean(c(S1cms, S2cms, S3cms))
+"
+"1","[1]"
+"1"," 0.1816485"
+"1","
+"

@@ -1,0 +1,370 @@
+"0","library(Matrix)"
+"0","library(Seurat)"
+"0","library(dplyr)"
+"0","library(plyr)"
+"2","-----------------------------------------------------------------------------------------------------------------------------------------------
+"
+"2","You have loaded plyr after dplyr - this is likely to cause problems.
+If you need functions from both plyr and dplyr, please load plyr first, then dplyr:
+library(plyr); library(dplyr)
+"
+"2","-----------------------------------------------------------------------------------------------------------------------------------------------
+"
+"2","
+Attaching package: ‘plyr’
+
+"
+"2","The following objects are masked from ‘package:dplyr’:
+
+    arrange, count, desc, failwith, id, mutate, rename, summarise, summarize
+
+"
+"0","library(ggcyto)"
+"0","library(RColorBrewer)"
+"0","library(cowplot)"
+"0","library(scRepertoire)"
+"0","library(circlize)"
+"2","========================================
+circlize version 0.4.13
+CRAN page: https://cran.r-project.org/package=circlize
+Github page: https://github.com/jokergoo/circlize
+Documentation: https://jokergoo.github.io/circlize_book/book/
+
+If you use it in published research, please cite:
+Gu, Z. circlize implements and enhances circular visualization
+  in R. Bioinformatics 2014.
+
+This message can be suppressed by:
+  suppressPackageStartupMessages(library(circlize))
+========================================
+
+"
+"0","library(scales)"
+"0","library(viridis)"
+"2","Loading required package: viridisLite
+"
+"2","
+Attaching package: ‘viridis’
+
+"
+"2","The following object is masked from ‘package:scales’:
+
+    viridis_pal
+
+"
+"0","source('~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/VDJ_Tools.R')"
+"2","Loading required package: Biostrings
+"
+"2","Loading required package: BiocGenerics
+"
+"2","Loading required package: parallel
+"
+"2","
+Attaching package: ‘BiocGenerics’
+
+"
+"2","The following objects are masked from ‘package:parallel’:
+
+    clusterApply, clusterApplyLB, clusterCall, clusterEvalQ, clusterExport, clusterMap, parApply, parCapply, parLapply,
+    parLapplyLB, parRapply, parSapply, parSapplyLB
+
+"
+"2","The following object is masked from ‘package:flowCore’:
+
+    normalize
+
+"
+"2","The following objects are masked from ‘package:dplyr’:
+
+    combine, intersect, setdiff, union
+
+"
+"2","The following objects are masked from ‘package:stats’:
+
+    IQR, mad, sd, var, xtabs
+
+"
+"2","The following objects are masked from ‘package:base’:
+
+    anyDuplicated, append, as.data.frame, basename, cbind, colnames, dirname, do.call, duplicated, eval, evalq, Filter, Find,
+    get, grep, grepl, intersect, is.unsorted, lapply, Map, mapply, match, mget, order, paste, pmax, pmax.int, pmin, pmin.int,
+    Position, rank, rbind, Reduce, rownames, sapply, setdiff, sort, table, tapply, union, unique, unsplit, which.max, which.min
+
+"
+"2","Loading required package: S4Vectors
+"
+"2","Loading required package: stats4
+"
+"2","
+Attaching package: ‘S4Vectors’
+
+"
+"2","The following object is masked from ‘package:plyr’:
+
+    rename
+
+"
+"2","The following objects are masked from ‘package:dplyr’:
+
+    first, rename
+
+"
+"2","The following object is masked from ‘package:Matrix’:
+
+    expand
+
+"
+"2","The following object is masked from ‘package:base’:
+
+    expand.grid
+
+"
+"2","Loading required package: IRanges
+"
+"2","
+Attaching package: ‘IRanges’
+
+"
+"2","The following object is masked from ‘package:plyr’:
+
+    desc
+
+"
+"2","The following objects are masked from ‘package:dplyr’:
+
+    collapse, desc, slice
+
+"
+"2","Loading required package: XVector
+"
+"2","
+Attaching package: ‘XVector’
+
+"
+"2","The following object is masked from ‘package:plyr’:
+
+    compact
+
+"
+"2","
+Attaching package: ‘Biostrings’
+
+"
+"2","The following object is masked from ‘package:base’:
+
+    strsplit
+
+"
+"2","Loading required package: stringr
+"
+"2","Loading required package: readr
+"
+"2","
+Attaching package: ‘readr’
+
+"
+"2","The following object is masked from ‘package:scales’:
+
+    col_factor
+
+"
+"2","Loading required package: purrr
+"
+"2","
+Attaching package: ‘purrr’
+
+"
+"2","The following object is masked from ‘package:XVector’:
+
+    compact
+
+"
+"2","The following object is masked from ‘package:IRanges’:
+
+    reduce
+
+"
+"2","The following object is masked from ‘package:scales’:
+
+    discard
+
+"
+"2","The following object is masked from ‘package:plyr’:
+
+    compact
+
+"
+"2","Loading required package: Peptides
+"
+"0","colors.use <- c(brewer.pal(8, 'Set1')[c(1:5,7:8)], brewer.pal(7, 'Dark2'),  'blue4', 'orangered', 'orangered4', c(brewer.pal(12, 'Paired'), brewer.pal(6, 'Accent'))[c(1:10, 12, 15:20)])"
+"0","emory.cols <- c(""#00aeef"",""#41b6e6"",""#487f84"",""#348338"",""#006c5b"",""#5c8118"",""#c35413"",""#da291c"",""#c6007e"",""#6558b1"",""#6d2077"",""#000000"")"
+"0",""
+"0","# Function to z-score each PC's percentage of the total variance captured"
+"0","TestPCA <- function(object = NULL, "
+"0","                    genes.use = object@assays$RNA@var.features,"
+"0","                    mtx.use = object@assays$RNA@scale.data){"
+"0","  data.use <- mtx.use[genes.use, ]"
+"0","  pca.results <- svd(x = t(data.use))"
+"0","  sdev <- pca.results$d/sqrt(max(1, ncol(data.use) - 1))"
+"0","  PCVariance <- rbind(SD = sdev,"
+"0","                      Proportion = (sdev^2)/sum(sdev^2), "
+"0","                      Cumulative = cumsum(sdev^2)/sum(sdev^2))"
+"0","  m <- mean(PCVariance['Proportion', ])"
+"0","  s <- sd(PCVariance['Proportion', ])"
+"0","  PCVariance <- rbind(PCVariance, "
+"0","                      ZScore = (PCVariance['Proportion', ] - m)/s)"
+"0","  return(PCVariance)"
+"0","}"
+"0","# Function to select mitochondrial percent by X Std Dev above median"
+"0","MitoFilter <- function(obj){"
+"0","  max.mito <<- 5*sd(obj$percent.mito) + median(obj$percent.mito)"
+"0","  obj <- obj %>% subset(percent.mito < max.mito) %>% subset(nFeature_RNA > 100)"
+"0","  return(obj)"
+"0","  rm(max.mito)"
+"0","}"
+"0",""
+"0","GetLISI <- function(object, nSamples) {"
+"0","  coords <- object@reductions$umap@cell.embeddings"
+"0","  sample_cats <- data.frame(""orig.ident"" = object@meta.data$orig.ident)"
+"0","  res <- lisi::compute_lisi(coords, sample_cats, c('orig.ident'))"
+"0","  sample.lisi <- median(res$orig.ident)"
+"0","  adjusted.lisi <- 1 - ((sample.lisi - 1) / (nSamples - 1))"
+"0","  return(adjusted.lisi)"
+"0","}"
+"0",""
+"0","#### For FeaturePlot() ####"
+"0","# Function to pseudo customize FeaturePlots"
+"0","customize_Seurat_FeaturePlot <- function(p, alpha.use = 1, gradient.use = c(""yellow"", ""red""), expression.threshold = 0, is.log1p.transformed = F) {"
+"0","  "
+"0","  #### Main function ####"
+"0","  main_function <- function(p = p, alpha.use = alpha.use, gradient.use = gradient.use, expression.threshold = expression.threshold, is.log1p.transformed = is.log1p.transformed) {"
+"0","    "
+"0","    # Order data by gene expresion level"
+"0","    p$data <- p$data[order(p$data$gene),]"
+"0","    "
+"0","    # Define lower limit of gene expression level"
+"0","    if (isTRUE(is.log1p.transformed)) {"
+"0","      expression.threshold <- expression.threshold"
+"0","    } else {"
+"0","      expression.threshold <- log1p(expression.threshold)"
+"0","    }"
+"0","    "
+"0","    # Compute maximum value in gene expression"
+"0","    max.exp <- max(p$data$gene)"
+"0","    "
+"0","    # Fill points using the gene expression levels"
+"0","    p$layers[[1]]$mapping$fill <- p$layers[[1]]$mapping$colour"
+"0","    "
+"0","    # Define transparency of points"
+"0","    p$layers[[1]]$mapping$alpha <- alpha.use"
+"0","    "
+"0","    # Change fill and colour gradient values"
+"0","    p <- p + scale_colour_gradientn(colours = gradient.use, guide = F, limits = c(expression.threshold, max.exp), na.value = ""grey"") +"
+"0","      scale_fill_gradientn(colours = gradient.use, name = expression(atop(Expression, (log))), limits = c(expression.threshold, max.exp), na.value = ""grey"") +"
+"0","      scale_alpha_continuous(range = alpha.use, guide = F)"
+"0","  }"
+"0","  "
+"0","  #### Execution of main function ####"
+"0","  # Apply main function on all features"
+"0","  p <- lapply(X = p, alpha.use = alpha.use, gradient.use = gradient.use, "
+"0","              expression.threshold = expression.threshold, is.log1p.transformed = is.log1p.transformed,"
+"0","              FUN = main_function)"
+"0","  "
+"0","  # Arrange all plots using cowplot"
+"0","  # Adapted from Seurat"
+"0","  # https://github.com/satijalab/seurat/blob/master/R/plotting.R#L1100"
+"0","  # ncol argument adapted from Josh O'Brien"
+"0","  # https://stackoverflow.com/questions/10706753/how-do-i-arrange-a-variable-list-of-plots-using-grid-arrange"
+"0","  cowplot::plot_grid(plotlist = p, ncol = ceiling(sqrt(length(p))))"
+"0","}"
+"0",""
+"0","# Correcting VDJ matrix barcodes to Seurat format"
+"0","rearrange.BC <- function(x){"
+"0","  toupper(trimws(unlist(lapply(strsplit(x, ""-""), '[[', 1))))"
+"0","}"
+"0",""
+"0","addVDJ <- function(obj = NULL, SampleID = NULL, lineage_df = NULL, cellrangervdj = NULL){"
+"0","  # Read in single-sample VDJ matrix with lineages & filter to IGH-only"
+"0","  VDJt <- as.data.frame(lineage_df)"
+"0","  crVDJ <- read.csv(cellrangervdj)"
+"0","  crVDJ.umi <- tapply(crVDJ$umis, crVDJ$barcode, FUN = sum)"
+"0","  rm(crVDJ)"
+"0","  "
+"0","  # Correcting VDJ matrix barcodes to Seurat format"
+"0","  VDJt$indexed_barcode <- rearrange.BC(VDJt$indexed_barcode)"
+"0","  VDJt$indexed_barcode <- paste(SampleID, VDJt$indexed_barcode, sep = c(""_""))"
+"0","  cells <- intersect(VDJt$indexed_barcode, colnames(obj))"
+"0","  "
+"0","  # Correcting CellRanger VDJ names"
+"0","  names(crVDJ.umi) <- rearrange.BC(names(crVDJ.umi))"
+"0","  names(crVDJ.umi) <- paste(SampleID, names(crVDJ.umi), sep = c(""_""))"
+"0","  crVDJ.umi <- crVDJ.umi[cells]"
+"0","  "
+"0","  VDJ <- VDJt[which(VDJt$chain_type == ""igh""), ]"
+"0","  rownames(VDJ) <- VDJ$indexed_barcode"
+"0","  VDJ.l.umi <- VDJt[which(VDJt$chain_type == ""igl""), c(""indexed_barcode"", ""umis"")]"
+"0","  rownames(VDJ.l.umi) <- VDJ.l.umi$indexed_barcode"
+"0","  rm(VDJt)"
+"0","  "
+"0","  # Establishing VDJ UMI count data (for plasma cell identification)"
+"0","  obj@meta.data$nCount_VDJ <- 0"
+"0","  UMI.mtx <- cbind(VDJ[cells, ""umis""], VDJ.l.umi[cells, ""umis""])"
+"0","  row.names(UMI.mtx) <- cells"
+"0","  UMI.mtx[is.na(UMI.mtx)] <- 0 "
+"0","  obj@meta.data[cells, ""nCount_VDJ""] <- crVDJ.umi[cells]"
+"0","  obj@meta.data[is.na(obj@meta.data$nCount_VDJ), ""nCount_VDJ""] <- 0"
+"0","  #VlnPlot(obj, ""nCount_VDJ"")"
+"0","  rm(list = c('UMI.mtx', 'VDJ.l.umi'))"
+"0","  # Transferring clonal lineage ID (from above, 85% CDR3 aa match)"
+"0","  obj@meta.data$Lineage_ID <- NA"
+"0","  obj@meta.data[cells, ""Lineage_ID""] <- VDJ[cells, 'lineage_id']"
+"0","  # Counting lineage frequency (finding shared lineage IDs)"
+"0","  lineage_freq <- plyr::count(obj@meta.data$Lineage_ID)"
+"0","  ## re-order frequency to match Seurat cell barcodes & add as metadata"
+"0","  lineage_freq <- lineage_freq[match(obj@meta.data$Lineage_ID, lineage_freq$x), ""freq""]"
+"0","  obj@meta.data$Lineage_Freq <- lineage_freq"
+"0","  rm(lineage_freq)"
+"0","  ## replace ""NA lineage"" cells with 0-count frequency (otherwise ""NA"" is the most frequent lineage)"
+"0","  obj@meta.data[which(is.na(obj@meta.data$Lineage_ID)), ""Lineage_Freq""] <- 0"
+"0","  "
+"0","  # Add IGH V-gene annotation"
+"0","  obj@meta.data$IGH_V <- NA"
+"0","  obj@meta.data[cells, ""IGH_V""] <- VDJ[cells, ""v_gene""]"
+"0","  # Add IGH J-gene annotation"
+"0","  obj@meta.data$IGH_J <- NA"
+"0","  obj@meta.data[cells, ""IGH_J""] <- VDJ[cells, ""j_gene""]"
+"0","  # Add IGH VJ-gene annotation"
+"0","  obj@meta.data$IGH_VJ <- NA"
+"0","  obj@meta.data[cells, ""IGH_VJ""] <- paste(VDJ[cells, ""j_gene""], VDJ[cells, ""v_gene""], sep = ""_"")"
+"0","  "
+"0","  # Add IGH V-gene annotation"
+"0","  obj@meta.data$CDR3_aa <- NA"
+"0","  obj@meta.data[cells, ""CDR3_aa""] <- VDJ[cells, ""aa_gapped_cdr3""]"
+"0","  "
+"0","  # Get V-gene frequency"
+"0","  V_freq <- plyr::count(obj@meta.data$IGH_V)"
+"0","  V_freq$freq <- (V_freq$freq/nrow(obj[[]]))*100"
+"0","  ## re-order frequency to match Seurat cell barcodes & add as metadata"
+"0","  V_freq <- V_freq[match(obj@meta.data$IGH_V, V_freq$x), ""freq""]"
+"0","  obj@meta.data$IGH_V_freq <- V_freq"
+"0","  rm(V_freq)"
+"0","  ## replace ""NA V-gene"" cells with 0-count frequency (otherwise ""NA"" is the most frequent V-gene)"
+"0","  obj@meta.data[which(is.na(obj@meta.data$IGH_V)), ""IGH_V_freq""] <- 0"
+"0","  "
+"0","  # Get VJ-gene frequency"
+"0","  VJ_freq <- plyr::count(obj@meta.data$IGH_VJ)"
+"0","  VJ_freq$freq <- (VJ_freq$freq/nrow(obj[[]]))*100"
+"0","  ## re-order frequency to match Seurat cell barcodes & add as metadata"
+"0","  VJ_freq <- VJ_freq[match(obj@meta.data$IGH_VJ, VJ_freq$x), ""freq""]"
+"0","  obj@meta.data$IGH_VJ_freq <- VJ_freq"
+"0","  rm(VJ_freq)"
+"0","  ## replace ""NA V-gene"" cells with 0-count frequency (otherwise ""NA"" is the most frequent V-gene)"
+"0","  obj@meta.data[which(is.na(obj@meta.data$IGH_J)), ""IGH_VJ_freq""] <- 0"
+"0","  "
+"0","  # Add isotype"
+"0","  obj@meta.data$Isotype <- NA"
+"0","  obj@meta.data[cells, ""Isotype""] <- VDJ[cells, ""isotype""]"
+"0","  return(obj)"
+"0","}"
+"0",""
+"0",""

@@ -1,0 +1,476 @@
+---
+title: "CHIRP-UCSF DSB Normalization"
+output: html_notebook
+---
+# Generate ADT DSB-normalized matrix for each patient sample from CHIRP
+
+# DSB norm
+# Setup Environment
+```{r}
+library(dsb)
+library(Matrix)
+library(Seurat)
+library(ggplot2)
+library(dplyr)
+dd <- "~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/UCSF/"
+```
+# PID4101 (Visit 1, COVID-negative control)
+```{r}
+# Read adt matrices for PID4101
+raw.data <- Read10X(data.dir = paste0(dd, 'PID4101/Raw/'), 
+                    gene.column = 2, unique.features = TRUE)
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4101/Filtered'), 
+                   gene.column = 2, unique.features = TRUE)
+# get ADT data for real cells
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+rm(fil.data)
+
+# get ADT data for background droplets
+adt.raw <- as.matrix(raw.data$`Antibody Capture`)
+rm(raw.data)
+
+# Remove "true" cell barcodes data from raw matrix to make "true background"
+cells.drop <- (colnames(adt.raw) %in% colnames(adt.fil))
+adt.raw <- adt.raw[, !cells.drop]
+# Remove empty ADT rows from background cells
+adt.raw <- adt.raw[which(rowSums(adt.raw) > 0),]
+raw.frame <- data.frame(cells = colnames(adt.raw), nUMI = colSums(adt.raw))
+fil.frame <- data.frame(cells = colnames(adt.fil), nUMI = colSums(adt.fil))
+
+# Plot to determine cutoff value
+cutoff <- c(2150, 4600)
+
+p1 <- ggplot(raw.frame, aes(x = nUMI)) +
+      geom_histogram(binwidth = 25) +
+      geom_histogram(data = fil.frame, aes(fill = "x"), binwidth = 25) + 
+      scale_fill_manual(values = "#E41A1C") +
+      coord_cartesian(xlim = c(0, 10000), ylim = c(0, 10000)) +
+      geom_vline(xintercept = cutoff, linetype = "dashed",
+                 color = "#377EB8", size = 1) +
+      theme(legend.position = "none") +
+      ggtitle("PID4101 (Visit 1) ADT Histogram with DSB Cutoffs")
+
+ggsave(paste0(dd, "Figures/DSB_Figs/PID4101_DSB_ADT_Histogram.pdf"), p1, width = 7, height = 7)
+
+# Remove empty ADT rows from real cells
+adt.fil <- adt.fil[which(rowSums(adt.fil) > 0),]
+
+### Select empty droplets (background)
+#####################################################
+## REPLACE nCount_ADT VALUE WITH DETERMINED CUTOFF ##
+#####################################################
+
+seurat.raw <- subset(seurat.raw, nCount_ADT < cutoff)
+adt.empty <- GetAssayData(seurat.raw, assay = "ADT", slot = 'counts') %>% as.matrix()
+### DSB normalization
+adt.norm <- DSBNormalizeProtein(cell_protein_matrix = adt.fil, empty_drop_matrix = adt.empty)
+write.csv(adt.norm, paste0(dd, 'PID4101/adt_dsb.csv'))
+rm(list = c('fil.data', 'seurat.raw', 'adt.fil', 'adt.empty', 'adt.norm', 'raw.data', 'adt.raw'))
+```
+# PID4101V (Vaccinated 4101, Visit 2)
+```{r}
+# Read unfiltered matrices for PID4101V (Vaccinated, visit 2)
+raw.data <- Read10X(data.dir = paste0(dd, 'PID4101V/Raw/'), 
+                    gene.column = 2, unique.features = TRUE)
+seurat.raw <- CreateSeuratObject(counts = raw.data$`Gene Expression`)
+adt.raw <- as.matrix(raw.data$`Antibody Capture`)
+adt.raw <- adt.raw[which(rowSums(adt.raw) > 0),]
+seurat.raw[['ADT']] <- CreateAssayObject(counts = adt.raw)
+ggplot(seurat.raw@meta.data, aes(x = nCount_ADT)) +
+geom_histogram(binwidth = 25) + 
+coord_cartesian(xlim = c(0, 5000), ylim = c(0, 10000)) +
+geom_vline(xintercept = 1150, linetype = "dashed",
+           color = "red", size = 1) +
+ggtitle("PID4101V (Vaccinated, Visit 2) ADT Histogram with DSB Cutoff (red)")
+
+ggsave(paste0(dd, "Figures/DSB_Figs/PID4101V_DSB_ADT_Histogram.pdf"))
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4101V/Filtered'), 
+                   gene.column = 2, unique.features = TRUE)
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+adt.fil <- adt.fil[which(rowSums(adt.fil) > 0),]
+#####################################################
+## REPLACE nCount_ADT VALUE WITH DETERMINED CUTOFF ##
+#####################################################
+seurat.raw <- subset(seurat.raw, nCount_ADT < 1150)
+adt.empty <- GetAssayData(seurat.raw, assay = "ADT", slot = 'counts') %>% as.matrix()
+adt.norm <- DSBNormalizeProtein(cell_protein_matrix = adt.fil, empty_drop_matrix = adt.empty)
+write.csv(adt.norm, paste0(dd, 'PID4101V/adt_dsb.csv'))
+rm(list = c('fil.data', 'seurat.raw', 'adt.fil', 'adt.empty', 'adt.norm', 'raw.data', 'adt.raw'))
+```
+# PID4127 (2 Days after symptom onset)
+```{r}
+# Read adt matrices for PID4101
+raw.data <- Read10X(data.dir = paste0(dd, 'PID4127/Raw/'), 
+                    gene.column = 2, unique.features = TRUE)
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4127/Filtered'), 
+                   gene.column = 2, unique.features = TRUE)
+# get ADT data for real cells
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+rm(fil.data)
+
+# get ADT data for background droplets
+adt.raw <- as.matrix(raw.data$`Antibody Capture`)
+rm(raw.data)
+
+# Remove "true" cell barcodes data from raw matrix to make "true background"
+cells.drop <- (colnames(adt.raw) %in% colnames(adt.fil))
+adt.raw <- adt.raw[, !cells.drop]
+# Remove empty ADT rows from background cells
+adt.raw <- adt.raw[which(rowSums(adt.raw) > 0),]
+raw.frame <- data.frame(cells = colnames(adt.raw), nUMI = colSums(adt.raw))
+fil.frame <- data.frame(cells = colnames(adt.fil), nUMI = colSums(adt.fil))
+
+# Plot to determine cutoff value
+cutoff <- c(75, 500)
+
+p1 <- ggplot(raw.frame, aes(x = nUMI)) +
+      geom_histogram(binwidth = 25) +
+      geom_histogram(data = fil.frame, aes(fill = "x"), binwidth = 25) + 
+      scale_fill_manual(values = "#E41A1C") +
+      coord_cartesian(xlim = c(0, 5000), ylim = c(0, 10000)) +
+      geom_vline(xintercept = cutoff, linetype = "dashed",
+                 color = "#377EB8", size = 1) +
+      theme(legend.position = "none") +
+      ggtitle("PID4127 (Visit 1) ADT Histogram with DSB Cutoffs")
+p1
+ggsave(paste0(dd, "Figures/DSB_Figs/PID4127_DSB_ADT_Histogram.pdf"), p1, width = 7, height = 7)
+
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4127/Filtered'), 
+                   gene.column = 2, unique.features = TRUE)
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+adt.fil <- adt.fil[which(rowSums(adt.fil) > 0),]
+#####################################################
+## REPLACE nCount_ADT VALUE WITH DETERMINED CUTOFF ##
+#####################################################
+adt.empty <- adt.raw[, which(colSums(adt.raw) > min(cutoff) & colSums(adt.raw) < max(cutoff))] %>% as.matrix()
+### DSB normalization
+adt.norm <- DSBNormalizeProtein(cell_protein_matrix = adt.fil, 
+                                empty_drop_matrix = adt.empty, 
+                                use.isotype.control = FALSE)
+write.csv(adt.norm, paste0(dd, 'PID4127/adt_dsb.csv'))
+rm(list = c('adt.raw', 'adt.fil', 'cells.drop', 'raw.frame', 'fil.frame', 
+            'cutoff', 'adt.empty', 'adt.norm'))
+```
+
+# PID4128V (Vaccinated, 6 months after symptom onset)
+```{r}
+# Read unfiltered matrices for PID4128 (Vaccinated, COVID-recovered)
+raw.data <- Read10X(data.dir = paste0(dd, 'PID4128V/Raw/'), 
+                    gene.column = 2, unique.features = TRUE)
+seurat.raw <- CreateSeuratObject(counts = raw.data$`Gene Expression`)
+adt.raw <- as.matrix(raw.data$`Antibody Capture`)
+adt.raw <- adt.raw[which(rowSums(adt.raw) > 0),]
+seurat.raw[['ADT']] <- CreateAssayObject(counts = adt.raw)
+ggplot(seurat.raw@meta.data, aes(x = nCount_ADT)) +
+geom_histogram(binwidth = 25) + 
+coord_cartesian(xlim = c(0, 5000), ylim = c(0, 10000)) +
+geom_vline(xintercept = 1150, linetype = "dashed",
+           color = "red", size = 1) +
+ggtitle("PID4128V (Vaccinated, COVID-recovered) ADT Histogram with DSB Cutoff (red)")
+
+ggsave(paste0(dd, "Figures/DSB_Figs/PID4128V_DSB_ADT_Histogram.pdf"))
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4128V/Filtered'), 
+                   gene.column = 2, unique.features = TRUE)
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+adt.fil <- adt.fil[which(rowSums(adt.fil) > 0),]
+#####################################################
+## REPLACE nCount_ADT VALUE WITH DETERMINED CUTOFF ##
+#####################################################
+seurat.raw <- subset(seurat.raw, nCount_ADT < 1150)
+adt.empty <- GetAssayData(seurat.raw, assay = "ADT", slot = 'counts') %>% as.matrix()
+adt.norm <- DSBNormalizeProtein(cell_protein_matrix = adt.fil, empty_drop_matrix = adt.empty)
+write.csv(adt.norm, paste0(dd, 'PID4128V/adt_dsb.csv'))
+rm(list = c('fil.data', 'seurat.raw', 'adt.fil', 'adt.empty', 'adt.norm', 'raw.data', 'adt.raw'))
+```
+
+# PID4130 (COVID, 80 days after symptom onset)
+```{r}
+# Read unfiltered matrices for PID4130 (80 day COVID)
+raw.data <- Read10X(data.dir = paste0(dd, 'PID4130/Raw/'), 
+                    gene.column = 2, unique.features = TRUE)
+seurat.raw <- CreateSeuratObject(counts = raw.data$`Gene Expression`)
+adt.raw <- as.matrix(raw.data$`Antibody Capture`)
+adt.raw <- adt.raw[which(rowSums(adt.raw) > 0),]
+seurat.raw[['ADT']] <- CreateAssayObject(counts = adt.raw)
+ggplot(seurat.raw@meta.data, aes(x = nCount_ADT)) +
+geom_histogram(binwidth = 25) + 
+coord_cartesian(xlim = c(0, 5000), ylim = c(0, 10000)) +
+geom_vline(xintercept = 1600, linetype = "dashed",
+           color = "red", size = 1) +
+ggtitle("PID4130 (80 Day COVID) ADT Histogram with DSB Cutoff (red)")
+
+ggsave(paste0(dd, "Figures/DSB_Figs/PID4130_DSB_ADT_Histogram.pdf"))
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4130/Filtered'), 
+                   gene.column = 2, unique.features = TRUE)
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+adt.fil <- adt.fil[which(rowSums(adt.fil) > 0),]
+#####################################################
+## REPLACE nCount_ADT VALUE WITH DETERMINED CUTOFF ##
+#####################################################
+seurat.raw <- subset(seurat.raw, nCount_ADT < 1600)
+adt.empty <- GetAssayData(seurat.raw, assay = "ADT", slot = 'counts') %>% as.matrix()
+adt.norm <- DSBNormalizeProtein(cell_protein_matrix = adt.fil, empty_drop_matrix = adt.empty)
+write.csv(adt.norm, paste0(dd, 'PID4130/adt_dsb.csv'))
+rm(list = c('fil.data', 'seurat.raw', 'adt.fil', 'adt.empty', 'adt.norm', 'raw.data', 'adt.raw'))
+```
+
+# PID4132 (COVID, 30 days after symptom onset)
+```{r}
+# Read unfiltered matrices for PID4132 (30 day COVID)
+raw.data <- Read10X(data.dir = paste0(dd, 'PID4132/Raw/'), 
+                    gene.column = 2, unique.features = TRUE)
+seurat.raw <- CreateSeuratObject(counts = raw.data$`Gene Expression`)
+adt.raw <- as.matrix(raw.data$`Antibody Capture`)
+adt.raw <- adt.raw[which(rowSums(adt.raw) > 0),]
+seurat.raw[['ADT']] <- CreateAssayObject(counts = adt.raw)
+ggplot(seurat.raw@meta.data, aes(x = nCount_ADT)) +
+geom_histogram(binwidth = 25) + 
+coord_cartesian(xlim = c(0, 5000), ylim = c(0, 10000)) +
+geom_vline(xintercept = 1300, linetype = "dashed",
+           color = "red", size = 1) +
+ggtitle("PID4132 (30 Day COVID) ADT Histogram with DSB Cutoff (red)")
+
+ggsave(paste0(dd, "Figures/DSB_Figs/PID4132_DSB_ADT_Histogram.pdf"))
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4132/Filtered'), 
+                   gene.column = 2, unique.features = TRUE)
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+adt.fil <- adt.fil[which(rowSums(adt.fil) > 0),]
+#####################################################
+## REPLACE nCount_ADT VALUE WITH DETERMINED CUTOFF ##
+#####################################################
+seurat.raw <- subset(seurat.raw, nCount_ADT < 1300)
+adt.empty <- GetAssayData(seurat.raw, assay = "ADT", slot = 'counts') %>% as.matrix()
+adt.norm <- DSBNormalizeProtein(cell_protein_matrix = adt.fil, empty_drop_matrix = adt.empty)
+write.csv(adt.norm, paste0(dd, 'PID4132/adt_dsb.csv'))
+rm(list = c('fil.data', 'seurat.raw', 'adt.fil', 'adt.empty', 'adt.norm', 'raw.data', 'adt.raw'))
+```
+
+# PID4134 (COVID, 16 days after symptom onset)
+```{r}
+# Read unfiltered matrices for PID4132 (30 day COVID)
+raw.data <- Read10X(data.dir = paste0(dd, 'PID4134/Raw/'), 
+                    gene.column = 2, unique.features = TRUE)
+seurat.raw <- CreateSeuratObject(counts = raw.data$`Gene Expression`)
+adt.raw <- as.matrix(raw.data$`Antibody Capture`)
+adt.raw <- adt.raw[which(rowSums(adt.raw) > 0),]
+seurat.raw[['ADT']] <- CreateAssayObject(counts = adt.raw)
+ggplot(seurat.raw@meta.data, aes(x = nCount_ADT)) +
+geom_histogram(binwidth = 25) + 
+coord_cartesian(xlim = c(0, 5000), ylim = c(0, 10000)) +
+geom_vline(xintercept = 1300, linetype = "dashed",
+           color = "red", size = 1) +
+ggtitle("PID4134 (16 Day COVID) ADT Histogram with DSB Cutoff (red)")
+# Kind of unusual shape on the ADT histogram... watch out for funky protein counts
+ggsave(paste0(dd, "Figures/DSB_Figs/PID4134_DSB_ADT_Histogram.pdf"))
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4134/Filtered'), 
+                   gene.column = 2, unique.features = TRUE)
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+adt.fil <- adt.fil[which(rowSums(adt.fil) > 0),]
+#####################################################
+## REPLACE nCount_ADT VALUE WITH DETERMINED CUTOFF ##
+#####################################################
+seurat.raw <- subset(seurat.raw, nCount_ADT < 1300)
+adt.empty <- GetAssayData(seurat.raw, assay = "ADT", slot = 'counts') %>% as.matrix()
+adt.norm <- DSBNormalizeProtein(cell_protein_matrix = adt.fil, empty_drop_matrix = adt.empty)
+write.csv(adt.norm, paste0(dd, 'PID4134/adt_dsb.csv'))
+rm(list = c('fil.data', 'seurat.raw', 'adt.fil', 'adt.empty', 'adt.norm', 'raw.data', 'adt.raw'))
+```
+
+# PID4XXXV (COVID, 30 days after symptom onset)
+```{r}
+# Read unfiltered matrices for PID4XXXV (Vaccinated)
+raw.data <- Read10X(data.dir = paste0(dd, 'PID4XXXV/Raw/'), 
+                    gene.column = 2, unique.features = TRUE)
+seurat.raw <- CreateSeuratObject(counts = raw.data$`Gene Expression`)
+adt.raw <- as.matrix(raw.data$`Antibody Capture`)
+adt.raw <- adt.raw[which(rowSums(adt.raw) > 0),]
+seurat.raw[['ADT']] <- CreateAssayObject(counts = adt.raw)
+ggplot(seurat.raw@meta.data, aes(x = nCount_ADT)) +
+geom_histogram(binwidth = 25) + 
+coord_cartesian(xlim = c(0, 5000), ylim = c(0, 10000)) +
+geom_vline(xintercept = 1200, linetype = "dashed",
+           color = "red", size = 1) +
+ggtitle("PID4XXXV (Vaccinated) ADT Histogram with DSB Cutoff (red)")
+
+ggsave(paste0(dd, "Figures/DSB_Figs/PID4XXXV_DSB_ADT_Histogram.pdf"))
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4XXXV/Filtered'), 
+                   gene.column = 2, unique.features = TRUE)
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+adt.fil <- adt.fil[which(rowSums(adt.fil) > 0),]
+#####################################################
+## REPLACE nCount_ADT VALUE WITH DETERMINED CUTOFF ##
+#####################################################
+seurat.raw <- subset(seurat.raw, nCount_ADT < 1200)
+adt.empty <- GetAssayData(seurat.raw, assay = "ADT", slot = 'counts') %>% as.matrix()
+adt.norm <- DSBNormalizeProtein(cell_protein_matrix = adt.fil, empty_drop_matrix = adt.empty)
+write.csv(adt.norm, paste0(dd, 'PID4XXXV/adt_dsb.csv'))
+rm(list = c('fil.data', 'seurat.raw', 'adt.fil', 'adt.empty', 'adt.norm', 'raw.data', 'adt.raw'))
+```
+
+# PBMC Samples
+```{r}
+# Read adt matrices for PBMC1
+dd <- "~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/PBMC/"
+
+raw.data <- Read10X(data.dir = paste0(dd, '5GEX_PBMC1_36yoF_F1/Batch2/Raw'), 
+                    gene.column = 2, unique.features = TRUE)
+fil.data <- Read10X(data.dir = paste0(dd, '5GEX_PBMC1_36yoF_F1/Batch2/Filtered'), 
+                    gene.column = 2, unique.features = TRUE)
+# get ADT data for real cells
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+rm(fil.data)
+
+# get ADT data for background droplets
+adt.raw <- as.matrix(raw.data$`Antibody Capture`)
+rm(raw.data)
+
+# Remove "true" cell barcodes data from raw matrix to make "true background"
+cells.drop <- (colnames(adt.raw) %in% colnames(adt.fil))
+adt.raw <- adt.raw[, !cells.drop]
+# Remove empty ADT rows from background cells
+adt.raw <- adt.raw[which(rowSums(adt.raw) > 0),]
+raw.frame <- data.frame(cells = colnames(adt.raw), nUMI = colSums(adt.raw))
+fil.frame <- data.frame(cells = colnames(adt.fil), nUMI = colSums(adt.fil))
+
+# Plot to determine cutoff value
+cutoff <- c(75, 600)
+
+ggplot(raw.frame, aes(x = nUMI)) +
+      geom_histogram(binwidth = 25) +
+      geom_histogram(data = fil.frame, aes(fill = "x"), binwidth = 25) + 
+      scale_fill_manual(values = "#E41A1C") +
+      coord_cartesian(xlim = c(0, 5000), ylim = c(0, 5000)) +
+      geom_vline(xintercept = cutoff, linetype = "dashed",
+                 color = "#377EB8", size = 1) +
+      theme(legend.position = "none") +
+      ggtitle("PBMC1_36yoF_F1 TSC ADT Histogram with DSB Cutoffs")
+
+ggsave("~/OneDrive - Emory University/Ghosn_Lab/scCOVID/CHIRP_BCell_scRNA/Figures/PBMC001_DSB_ADT_Histogram.pdf",
+       width = 7, height = 7)
+
+# Remove empty ADT rows from real cells
+adt.fil <- adt.fil[which(rowSums(adt.fil) > 0),]
+
+### Select empty droplets (background)
+#####################################################
+## REPLACE nCount_ADT VALUE WITH DETERMINED CUTOFF ##
+#####################################################
+
+adt.empty <- adt.raw[, which(colSums(adt.raw) > min(cutoff) & colSums(adt.raw) < max(cutoff))] %>% as.matrix()
+### DSB normalization
+adt.norm <- DSBNormalizeProtein(cell_protein_matrix = adt.fil, 
+                                empty_drop_matrix = adt.empty)
+write.csv(adt.norm, paste0(dd, '5GEX_PBMC1_36yoF_F1/Batch2/adt_dsb.csv'))
+rm(list = c('adt.raw', 'adt.fil', 'cells.drop', 'raw.frame', 'fil.frame', 
+            'cutoff', 'adt.empty', 'adt.norm'))
+```
+
+```{r}
+# Read adt matrices for PBMC2
+raw.data <- Read10X(data.dir = paste0(dd, '5GEX_PBMC2_27yoF_G1/Batch2/Raw'), 
+                    gene.column = 2, unique.features = TRUE)
+fil.data <- Read10X(data.dir = paste0(dd, '5GEX_PBMC2_27yoF_G1/Batch2/Filtered'), 
+                    gene.column = 2, unique.features = TRUE)
+# get ADT data for real cells
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+rm(fil.data)
+
+# get ADT data for background droplets
+adt.raw <- as.matrix(raw.data$`Antibody Capture`)
+rm(raw.data)
+
+# Remove "true" cell barcodes data from raw matrix to make "true background"
+cells.drop <- (colnames(adt.raw) %in% colnames(adt.fil))
+adt.raw <- adt.raw[, !cells.drop]
+# Remove empty ADT rows from background cells
+adt.raw <- adt.raw[which(rowSums(adt.raw) > 0),]
+raw.frame <- data.frame(cells = colnames(adt.raw), nUMI = colSums(adt.raw))
+fil.frame <- data.frame(cells = colnames(adt.fil), nUMI = colSums(adt.fil))
+
+# Plot to determine cutoff value
+cutoff <- c(100, 900)
+
+ggplot(raw.frame, aes(x = nUMI)) +
+      geom_histogram(binwidth = 25) +
+      geom_histogram(data = fil.frame, aes(fill = "x"), binwidth = 25) + 
+      scale_fill_manual(values = "#E41A1C") +
+      coord_cartesian(xlim = c(0, 5000), ylim = c(0, 5000)) +
+      geom_vline(xintercept = cutoff, linetype = "dashed",
+                 color = "#377EB8", size = 1) +
+      theme(legend.position = "none") +
+      ggtitle("PBMC2_27yoF_G1 TSC ADT Histogram with DSB Cutoffs")
+
+ggsave(paste0(dd, "5GEX_PBMC2_27yoF_G1/Batch2/DSB_ADT_Histogram.pdf"), width = 7, height = 7)
+
+# Remove empty ADT rows from real cells
+adt.fil <- adt.fil[which(rowSums(adt.fil) > 0),]
+
+### Select empty droplets (background)
+#####################################################
+## REPLACE nCount_ADT VALUE WITH DETERMINED CUTOFF ##
+#####################################################
+
+adt.empty <- adt.raw[, which(colSums(adt.raw) > min(cutoff) & colSums(adt.raw) < max(cutoff))] %>% as.matrix()
+### DSB normalization
+adt.norm <- DSBNormalizeProtein(cell_protein_matrix = adt.fil, 
+                                empty_drop_matrix = adt.empty)
+write.csv(adt.norm, paste0(dd, '5GEX_PBMC2_27yoF_G1/Batch2/adt_dsb.csv'))
+rm(list = c('adt.raw', 'adt.fil', 'cells.drop', 'raw.frame', 'fil.frame', 
+            'cutoff', 'adt.empty', 'adt.norm'))
+
+```
+
+```{r}
+# Read adt matrices for PBMC3
+raw.data <- Read10X(data.dir = paste0(dd, '5GEX_PBMC3_46yoM_H1/Batch2/Raw'), 
+                    gene.column = 2, unique.features = TRUE)
+fil.data <- Read10X(data.dir = paste0(dd, '5GEX_PBMC3_46yoM_H1/Batch2/Filtered'), 
+                    gene.column = 2, unique.features = TRUE)
+# get ADT data for real cells
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+rm(fil.data)
+
+# get ADT data for background droplets
+adt.raw <- as.matrix(raw.data$`Antibody Capture`)
+rm(raw.data)
+
+# Remove "true" cell barcodes data from raw matrix to make "true background"
+cells.drop <- (colnames(adt.raw) %in% colnames(adt.fil))
+adt.raw <- adt.raw[, !cells.drop]
+# Remove empty ADT rows from background cells
+adt.raw <- adt.raw[which(rowSums(adt.raw) > 0),]
+raw.frame <- data.frame(cells = colnames(adt.raw), nUMI = colSums(adt.raw))
+fil.frame <- data.frame(cells = colnames(adt.fil), nUMI = colSums(adt.fil))
+
+# Plot to determine cutoff value
+cutoff <- c(75, 325)
+
+ggplot(raw.frame, aes(x = nUMI)) +
+      geom_histogram(binwidth = 25) +
+      geom_histogram(data = fil.frame, aes(fill = "x"), binwidth = 25) + 
+      scale_fill_manual(values = "#E41A1C") +
+      coord_cartesian(xlim = c(0, 5000), ylim = c(0, 5000)) +
+      geom_vline(xintercept = cutoff, linetype = "dashed",
+                 color = "#377EB8", size = 1) +
+      theme(legend.position = "none") +
+      ggtitle("PBMC3_46yoM_H1 TSC ADT Histogram with DSB Cutoffs")
+
+ggsave(paste0(dd, "5GEX_PBMC3_46yoM_H1/Batch2/DSB_ADT_Histogram.pdf"), width = 7, height = 7)
+
+# Remove empty ADT rows from real cells
+adt.fil <- adt.fil[which(rowSums(adt.fil) > 0),]
+
+### Select empty droplets (background)
+#####################################################
+## REPLACE nCount_ADT VALUE WITH DETERMINED CUTOFF ##
+#####################################################
+
+adt.empty <- adt.raw[, which(colSums(adt.raw) > min(cutoff) & colSums(adt.raw) < max(cutoff))] %>% as.matrix()
+### DSB normalization
+adt.norm <- DSBNormalizeProtein(cell_protein_matrix = adt.fil, 
+                                empty_drop_matrix = adt.empty)
+write.csv(adt.norm, paste0(dd, '5GEX_PBMC3_46yoM_H1/Batch2/adt_dsb.csv'))
+rm(list = c('adt.raw', 'adt.fil', 'cells.drop', 'raw.frame', 'fil.frame', 
+            'cutoff', 'adt.empty', 'adt.norm'))
+
+```

@@ -1,0 +1,17 @@
+"0","data(PBMC4A_Single_ID)
+S4Acms <- GetCMS(object = PBMC4, 
+                sample.ID = ""Sample_4A"", 
+                reference.ID = PBMC4A_Single_ID)
+# PBMC Sample 4-B
+data(PBMC4B_Single_ID)
+S4Bcms <- GetCMS(object = PBMC4, 
+                sample.ID = ""Sample_4B"", 
+                reference.ID = PBMC4B_Single_ID)
+
+# Average CMS
+mean(c(S4Acms, S4Bcms))
+"
+"1","[1]"
+"1"," 0.03208177"
+"1","
+"

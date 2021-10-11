@@ -1,0 +1,8 @@
+"0","```r
+PT_PCells <- subset(TotalPT, subset = nCount_VDJ > 800)
+# 4404 Plasma cells / 24192 total cells
+PT_BCells <- subset(TotalPT, subset = nCount_VDJ > 800, invert = T)
+# 19788 B cells
+saveRDS(PT_PCells, \"./Workflow/Data/PT_PCells.rds\")
+saveRDS(PT_BCells, \"./Workflow/Data/PT_BCells.rds\")
+```"

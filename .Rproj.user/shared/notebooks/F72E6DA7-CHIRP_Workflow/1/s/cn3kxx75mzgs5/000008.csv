@@ -1,0 +1,13 @@
+"0","```r
+TotalPBMC <- subset(TotalPBMC, subset = `adt_CD16-TotalSeqC` > 5, invert = T)
+TotalPBMC <- subset(TotalPBMC, subset = `adt_CD14-TotalSeqC` > 3.9, invert = T)
+
+VlnPlot(TotalPBMC, \"IGHSum\") + scale_y_log10() + theme(legend.position = \"none\")
+```"
+"1","Scale for 'y' is already present. Adding another scale for 'y', which will replace the existing scale.
+"
+"0","```r
+ggsave(\"./Workflow/Figures/TotalPBMC_IGHSum_Vln.pdf\")
+```"
+"1","Saving 7.29 x 4.51 in image
+"

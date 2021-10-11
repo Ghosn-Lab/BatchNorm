@@ -1,0 +1,20 @@
+"0","```r
+TotalPBMC <- subset(TotalPBMC, subset = `adt_CD56-TotalSeqC` > 4, invert = T)
+TotalPBMC <- subset(TotalPBMC, subset = `adt_CD3-TotalSeqC` > 10, invert = T)
+
+d <- as.data.frame(FetchData(object = TotalPBMC, 
+                   vars = c(\"adt_CD16-TotalSeqC\", \"adt_CD14-TotalSeqC\")))
+## Format colnames to match FeatureScatter syntax
+colnames(d) <- c(\"adt_CD16.TotalSeqC\", \"adt_CD14.TotalSeqC\")
+p <- FeatureScatter(TotalPBMC, \"adt_CD16-TotalSeqC\", \"adt_CD14-TotalSeqC\",
+                    cols = colors.use, plot.cor = F) +
+    # geom_density2d(data = d, color = \"black\", size = 1) +
+     theme_gray() +
+     labs(x = \"CD16 (ADT)\", 
+          y = \"CD14 (ADT)\") +
+  geom_vline(xintercept = 5) + geom_hline(yintercept = 3.9)
+p
+ggsave(\"./Workflow/Figures/PBMCs_CD16CD14.pdf\")
+```"
+"1","Saving 7.29 x 4.51 in image
+"

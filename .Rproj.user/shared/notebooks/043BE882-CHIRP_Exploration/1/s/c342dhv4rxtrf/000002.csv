@@ -1,0 +1,123 @@
+"0","```r
+# downloaded dev version on 06.27.2021
+#devtools::install_github(\"ncborcherding/scRepertoire@dev\")
+library(scRepertoire)
+# vaccinated = \"PID4101V\", \"PID4128V\", \"PID4XXXV\"
+# infected  = \"PID4127\", \"PID4130\", \"PID4132\", \"PID4134\"
+# control = \"PID4101\"
+samples = c(\"PID4101\", \"PID4101V\", \"PID4128V\", \"PID4XXXV\",
+                            \"PID4127\", \"PID4130\", \"PID4132\", \"PID4134\")
+
+col.classes <- c(\"character\", \"logical\", \"character\", \"logical\", \"numeric\", \"character\", \"character\", \"character\", \"character\", \"character\", \"logical\", \"logical\", \"character\", \"character\", \"numeric\", \"numeric\", \"character\", \"character\", rep(\"NULL\", 10))
+PID4101.VDJ <- read.csv(paste0(dd, \"PID4101/VDJ/filtered_contig_annotations.csv\"),
+                         colClasses = col.classes)
+PID4101V.VDJ <- read.csv(paste0(dd, \"PID4101V/VDJ/filtered_contig_annotations.csv\"),
+                         colClasses = col.classes)
+PID4128V.VDJ <- read.csv(paste0(dd, \"PID4128V/VDJ/filtered_contig_annotations.csv\"),
+                         colClasses = col.classes)
+PID4XXXV.VDJ <- read.csv(paste0(dd, \"PID4XXXV/VDJ/filtered_contig_annotations.csv\"),
+                         colClasses = col.classes)
+PID4127.VDJ <- read.csv(paste0(dd, \"PID4127/VDJ/filtered_contig_annotations.csv\"),
+                         colClasses = col.classes, )
+PID4130.VDJ <- read.csv(paste0(dd, \"PID4130/VDJ/filtered_contig_annotations.csv\"),
+                         colClasses = col.classes)
+PID4132.VDJ <- read.csv(paste0(dd, \"PID4132/VDJ/filtered_contig_annotations.csv\"),
+                         colClasses = col.classes)
+PID4134.VDJ <- read.csv(paste0(dd, \"PID4134/VDJ/filtered_contig_annotations.csv\"),
+                         colClasses = col.classes)
+
+contig_list <- list(PID4101.VDJ, PID4101V.VDJ, PID4128V.VDJ, PID4XXXV.VDJ,
+                    PID4127.VDJ, PID4130.VDJ, PID4132.VDJ, PID4134.VDJ)
+combined <- combineBCR(contig_list, 
+                samples = c(\"PID4101\", \"PID4101V\", \"PID4128V\", \"PID4XXXV\",
+                            \"PID4127\", \"PID4130\", \"PID4132\", \"PID4134\"), 
+                ID = c(\"V\", \"V\", \"V\", \"V\",
+                       \"V\", \"V\", \"V\", \"V\"),
+                removeNA = T)
+names(combined) <- gsub(\"_V\", \"\", names(combined))
+for (i in seq_along(combined)) {
+    combined[[i]]$barcode <- gsub(\"_V\", \"\", combined[[i]]$barcode)
+}
+rm(list = c('PID4101.VDJ', 'PID4101V.VDJ', 'PID4128V.VDJ', 'PID4XXXV.VDJ',
+            'PID4127.VDJ', 'PID4130.VDJ', 'PID4132.VDJ', 'PID4134.VDJ'))
+
+Contig.df <- quantContig(combined, cloneCall=\"gene+nt\", 
+                         scale = T, exportTable = T)
+samples <- c(\"PID4101\", \"PID4101V\", \"PID4128V\", \"PID4XXXV\",
+             \"PID4127\", \"PID4130\", \"PID4132\", \"PID4134\")
+Contig.df$values <- factor(Contig.df$values,
+                        levels = samples)
+
+ggplot(data = Contig.df, aes(x = values, y = total,
+                          fill = values)) + 
+  stat_summary(fun = mean, geom = \"bar\", color = \"black\", lwd = 0.25) +
+  theme_grey() + 
+  scale_fill_manual(values = colors.use) + theme(legend.position = \"none\") +
+  labs(x = \"\", y = \"Total Unique Clonotypes (VDJC + CDR3)\",
+       title = \"Total Unique Clonotypes by Sample\")
+ggsave(\"./Figures/Repertoire/Total_Reperotire.pdf\", height = 5, width = 10)
+
+d <- data.frame(values = samples,
+           reads = c(68935, 136087, 141116, 89148, 26839, 68850, 102153, 47898))
+d$values <- factor(d$values, levels = samples)
+ggplot(data = d, aes(x = values, y = reads,
+                          fill = values)) + 
+  stat_summary(fun = mean, geom = \"bar\", color = \"black\", lwd = 0.25) +
+  theme_grey() + 
+  scale_fill_manual(values = colors.use) + theme(legend.position = \"none\") +
+  labs(x = \"\", y = \"Mean Reads\",
+       title = \"Mean Reads per Cell, by Sample\")
+ggsave(\"./Figures/Repertoire/Mean_Reads.pdf\", height = 5, width = 7)
+
+d <- data.frame(values = samples,
+           reads = c(1515, 1630, 1774, 1433, 769, 1017, 1956, 1559))
+d$values <- factor(d$values, levels = samples)
+ggplot(data = d, aes(x = values, y = reads,
+                          fill = values)) + 
+  stat_summary(fun = mean, geom = \"bar\", color = \"black\", lwd = 0.25) +
+  theme_grey() + 
+  scale_fill_manual(values = colors.use) + theme(legend.position = \"none\") +
+  labs(x = \"\", y = \"Mean nGenes\",
+       title = \"Mean nGenes per Cell, by Sample\")
+ggsave(\"./Figures/Repertoire/Mean_nGenes.pdf\", height = 5, width = 7)
+
+
+ggplot(data = Contig.df, aes(x = values, y = scaled,
+                          fill = values)) + 
+  stat_summary(fun = mean, geom = \"bar\", color = \"black\", lwd = 0.25) +
+  theme_grey() + 
+  scale_fill_manual(values = colors.use) + theme(legend.position = \"none\") +
+  labs(x = \"\", y = \"Proportion of Unique Clonotypes (VDJC + CDR3)\",
+       title = \"Proportion of Unique Clonotypes \nScaled by Total Number of Clonotyes per Sample\")
+ggsave(\"./Figures/Repertoire/Proportional_Reperotire.pdf\", height = 5, width = 10)
+
+Abundance.df <- abundanceContig(combined, cloneCall = \"gene+nt\", 
+                                scale = T, exportTable = T)
+Abundance.df$values <- factor(Abundance.df$values,
+                        levels = samples)
+
+ggplot(Abundance.df, aes(Abundance, fill = values)) + 
+        geom_density(aes(y = ..scaled..), alpha = 0.9, 
+          lwd = 1, color = \"black\", bw = 0.5) + 
+  scale_fill_manual(values = colors.use) + scale_x_log10() +
+  labs(x = \"Abundance\", y = \"Scaled Density\",
+       title = \"Abundance of Unique Clonotypes per Sample\") +
+  theme_grey()
+ggsave(\"./Figures/Repertoire/Clonotype_Abundance.pdf\", height = 5, width = 10)
+
+clonalHomeostasis(combined, cloneCall = \"aa\")
+ggsave(\"./Figures/Repertoire/Clonotype_Expansion.pdf\", height = 5, width = 10)
+
+clonalOverlap(combined, cloneCall = \"aa\", method = \"overlap\")
+ggsave(\"./Figures/Repertoire/Clonal_Overlap.pdf\", height = 5, width = 10)
+
+compareClonotypes(combined, numbers = 5, 
+                                samples = c(\"PID4101\", \"PID4101V\"), 
+                                cloneCall=\"aa\", graph = \"alluvial\") + 
+  scale_fill_manual(values = colors.use)
+ggsave(\"./Figures/Repertoire/Clonal_Comparison_Alluvial.pdf\", height = 5, width = 10)
+
+saveRDS(combined, \"./Data/Repertoire_Combined.rds\")
+combined <- readRDS(\"./Data/Repertoire_Combined.rds\")
+
+```"

@@ -1,0 +1,22 @@
+"0","```r
+ggplot(infected.data, 
+       aes(x = as.numeric(days.after.pcr), y = Lineage_Freq, color = \"black\")) + 
+  geom_point() +
+  stat_summary(data = infected.data.nonzero, aes(y = Lineage_Freq), fun = mean, colour = \"red\", geom = \"line\") +
+  ylab(\"Clonal frequency (clonal expansion)\") + xlab(\"Days After First PCR+\") + 
+  ggtitle(\"Percentage Clonally Expanded Cells (70% CDR3 match) of \nInfected/Convalescent Patients\") +
+  scale_color_manual(values = c(\"black\", colors.use)) +
+  theme_grey() + theme(legend.position = \"none\") +
+  ylim(0, 100) + coord_cartesian(ylim = c(0,100), xlim = c(0, 180)) +
+  annotate(\"rect\", xmin = -20, xmax = 200, ymin = min(CTL.data), ymax = max(CTL.data),
+           alpha = .1,fill = \"blue\") +
+  annotate(\"text\", x = 150, y = max(CTL.data), label = \"Control Range\", vjust = 1) +
+  annotate(\"rect\", xmin = -20, xmax = 200, ymin = min(VAX.data), ymax = max(VAX.data),
+           alpha = .1,fill = \"red\") +
+  annotate(\"text\", x = 80, y = max(VAX.data), label = \"Vaccinated Range\", vjust = 1)
+
+ggsave(\"./Workflow/Figures/Clonal_Expansion.pdf\")
+
+```"
+"1","Saving 7.29 x 4.51 in image
+"

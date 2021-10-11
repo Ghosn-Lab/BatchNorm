@@ -1,0 +1,280 @@
+"0","```r
+TotalPT <- readRDS(\"./Data/TotalPT_VDJ.rds\")
+
+plasma.cells <- WhichCells(TotalPT, expression = `nCount_VDJ` >= 500)
+TotalPT@meta.data$is.plasma.cell <- rep(F, nrow(TotalPT@meta.data))
+TotalPT@meta.data[plasma.cells, \"is.plasma.cell\"] <- T
+
+Idents(TotalPT) <- TotalPT[[\"orig.ident\"]]
+TotalPT <- subset(TotalPT, idents = \"PID4127\", invert = T)
+
+TotalPT <- TotalPT %>%
+           FindVariableFeatures(selection.method = \"vst\", nfeatures = 2000) %>%
+           ScaleData() %>% 
+           RunPCA(npcs = 30)
+# Identify correct numbers of PCs
+# TotalPT.pca.test <- TestPCA(TotalPT)
+# TotalPT.pca.test[, 1:20]
+# 14 PCs with z > 1
+# rm(TotalPT.pca.test)
+
+TotalPT <- TotalPT %>% 
+           RunUMAP(reduction = \"pca\", dims = 1:14) %>%
+           FindNeighbors(reduction = \"pca\", dims = 1:14) %>%
+           FindClusters(resolution = .8)
+
+FeaturePlot(TotalPT, \"is.plasma.cell\")
+FeaturePlot(TotalPT, \"CD27\")
+UMAPPlot(TotalPT, group.by = \"Isotype\")
+
+
+TotalPT$seurat_clusters <- plyr::mapvalues(x = TotalPT$seurat_clusters, 
+                                           from = c(1, 3, 6), 
+                                           to = c('Memory', 'Memory', 'Memory')
+                                           )
+
+TotalPT$seurat_clusters <- plyr::mapvalues(x = TotalPT$seurat_clusters, 
+                                           from = c(0, 2, 4, 7), 
+                                           to = c('Naive', 'Naive', 'Naive', 'Naive')
+                                           )
+
+TotalPT$seurat_clusters <- plyr::mapvalues(x = TotalPT$seurat_clusters, 
+                                           from = c(5, 9, 15), 
+                                           to = c('Plasma', 'Plasma', 'Plasma')
+                                           )
+Idents(TotalPT) <- TotalPT[[\"seurat_clusters\"]]
+TotalPT <- subset(TotalPT, idents = c(\"Plasma\", \"Memory\", \"Naive\"))
+
+Idents(TotalPT) <- TotalPT[[\"orig.ident\"]]
+TotalPT$Isotype <- factor(TotalPT$Isotype,
+                          levels = c(\"g1\", \"g2\", \"g3\", \"g4\", \"a1\", \"a2\", \"m\", \"d\"))
+  
+for(id in unique(TotalPT$orig.ident)){
+  s1 <- subset(TotalPT, idents = id)
+  s1.df <- count(s1$Isotype)
+  ggplot(data = s1.df, aes(x = x, y = freq, fill = x), ) +
+    geom_col() + scale_fill_manual(values = colors.use) +
+    ggtitle(paste(id, \"All B Cells Isotype Usage\"))
+  ggsave(paste0(\"./Figures/Isotype_Usage/\", id, \"_total_isotype.pdf\"))
+  
+  p1 <- subset(s1, cells = WhichCells(s1, expression = `seurat_clusters` == \"Plasma\"))
+  p1.df <- count(p1$Isotype)
+  ggplot(data = p1.df, aes(x = x, y = freq, fill = x), ) +
+    geom_col() + scale_fill_manual(values = colors.use) +
+    ggtitle(paste(id, \"Plasma Cells Isotype Usage\"))
+    ggsave(paste0(\"./Figures/Isotype_Usage/\", id, \"_plasma_isotype.pdf\"))
+
+  m1 <- subset(s1, cells = WhichCells(s1, expression = `seurat_clusters` == \"Memory\"))
+  m1.df <- count(m1$Isotype)
+  ggplot(data = m1.df, aes(x = x, y = freq, fill = x), ) +
+    geom_col() + scale_fill_manual(values = colors.use) +
+    ggtitle(paste(id, \"Memory Cells Isotype Usage\"))
+  ggsave(paste0(\"./Figures/Isotype_Usage/\", id, \"_memory_isotype.pdf\"))
+}
+
+count(TotalPT$Isotype)
+
+UMAPPlot(TotalPT, group.by = \"seurat_clusters\", cols = colors.use)
+plasma.cells <- subset(TotalPT, cells = WhichCells(TotalPT, expression = `seurat_clusters` == \"Plasma\"))
+Idents(plasma.cells) <- plasma.cells[[\"orig.ident\"]]
+m <- FindMarkers(plasma.cells, only.pos = T,
+            ident.1 = c(\"PID4101V\", \"PID4128V\", \"PID4XXXV\"),
+            ident.2 = c(\"PID4130\", \"PID4132\", \"PID4134\"))
+write.csv(m, file = \"./Data/Plasma_Vax_v_Infection_markers.csv\")
+
+m <- FindMarkers(plasma.cells, only.pos = T, 
+            ident.2 = c(\"PID4101V\", \"PID4128V\", \"PID4XXXV\"),
+            ident.1 = c(\"PID4130\", \"PID4132\", \"PID4134\"))
+write.csv(m, file = \"./Data/Plasma_Infection_v_Vax_markers.csv\")
+
+memory.cells <- subset(TotalPT, cells = WhichCells(TotalPT, expression = `seurat_clusters` == \"Memory\"))
+Idents(memory.cells) <- memory.cells[[\"orig.ident\"]]
+m <- FindMarkers(memory.cells, only.pos = T,
+            ident.1 = c(\"PID4101V\", \"PID4128V\", \"PID4XXXV\"),
+            ident.2 = c(\"PID4130\", \"PID4132\", \"PID4134\"))
+write.csv(m, file = \"./Data/Memory_Vax_v_Infection_markers.csv\")
+
+m <- FindMarkers(memory.cells, only.pos = T, 
+            ident.2 = c(\"PID4101V\", \"PID4128V\", \"PID4XXXV\"),
+            ident.1 = c(\"PID4130\", \"PID4132\", \"PID4134\"))
+write.csv(m, file = \"./Data/Memory_Infection_v_Vax_markers.csv\")
+
+
+percent.plasma <- data.frame(samples = unique(TotalPT@meta.data$orig.ident),
+                             freq = rep(0, length(unique(TotalPT@meta.data$orig.ident))))
+rownames(percent.plasma) <- percent.plasma$samples
+for(id in unique(TotalPT@meta.data$orig.ident)){
+  nPlasma <- sum(TotalPT@meta.data[, \"orig.ident\"] == id & TotalPT@meta.data[, \"seurat_clusters\"] == \"Plasma\")
+  freqPlasma <- nPlasma / sum(TotalPT@meta.data[, \"orig.ident\"] == id)
+  percentPlasma <- freqPlasma * 100
+  percent.plasma[id, \"freq\"] <- percentPlasma
+}
+percent.plasma$samples <- factor(percent.plasma$samples,
+                          levels = c(\"PID4101\", \"PID4101V\", \"PID4XXXV\", \"PID4128V\", \"PID4134\", \"PID4132\", \"PID4130\"))
+percent.plasma$condition <- plyr::mapvalues(x = percent.plasma$samples, 
+                                            from = c(\"PID4101\", \"PID4101V\", \"PID4XXXV\", 
+                                                     \"PID4128V\", \"PID4134\", 
+                                                     \"PID4132\", \"PID4130\"),
+                                            to = c(\"Control\", \"Vaccinated (Pfizer)\", \"Vaccinated (Moderna)\", 
+                                                     \"Vaccinated Convalescent\", \"Infected 16D\", 
+                                                     \"Infected 30D\", \"Infected 80D\"))
+ggplot(data = percent.plasma, aes(x = samples, y = freq, fill = condition), ) +
+    geom_col() + scale_fill_manual(values = colors.use) +
+    ggtitle(paste(\"Percentage Plasma Cells (of total B cells) by Sample\"))
+ggsave(paste0(\"./Figures/PlasmaCell_Percentage_BySample.pdf\"), height = 5, width = 9)
+
+
+FeaturePlot(TotalPT, \"PCNA\")
+
+TotalPT@meta.data$Expanding <- rep(F, nrow(TotalPT@meta.data))
+TotalPT@meta.data[WhichCells(TotalPT, expression = `MKI67` > 0 | `PCNA` > 0), \"Expanding\"] <- T
+
+
+plasma.expanding <- data.frame(samples = unique(TotalPT@meta.data$orig.ident),
+                             freq = rep(0, length(unique(TotalPT@meta.data$orig.ident))))
+rownames(plasma.expanding) <- plasma.expanding$samples
+
+for(id in unique(TotalPT@meta.data$orig.ident)){
+  nPlasmaEx <- sum(TotalPT@meta.data[, \"orig.ident\"] == id & TotalPT@meta.data[, \"seurat_clusters\"] == \"Plasma\" & TotalPT@meta.data[, \"Expanding\"] == T)
+  freqPlasmaEx <- nPlasmaEx / sum(TotalPT@meta.data[, \"orig.ident\"] == id & TotalPT@meta.data[, \"seurat_clusters\"] == \"Plasma\")
+  percentPlasmaEx <- freqPlasmaEx * 100
+  plasma.expanding[id, \"freq\"] <- percentPlasmaEx
+}
+plasma.expanding$samples <- factor(plasma.expanding$samples,
+                          levels = c(\"PID4101\", \"PID4101V\", \"PID4XXXV\", \"PID4128V\", \"PID4134\", \"PID4132\", \"PID4130\"))
+plasma.expanding$condition <- plyr::mapvalues(x = plasma.expanding$samples, 
+                                            from = c(\"PID4101\", \"PID4101V\", \"PID4XXXV\", 
+                                                     \"PID4128V\", \"PID4134\", 
+                                                     \"PID4132\", \"PID4130\"),
+                                            to = c(\"Control\", \"Vaccinated (Pfizer)\", \"Vaccinated (Moderna)\", 
+                                                     \"Vaccinated Convalescent\", \"Infected 16D\", 
+                                                     \"Infected 30D\", \"Infected 80D\"))
+ggplot(data = plasma.expanding, aes(x = samples, y = freq, fill = condition), ) +
+    geom_col() + scale_fill_manual(values = colors.use) +
+    ggtitle(paste(\"Percentage MKI67 or PCNA+ Plasma Cells by Sample\"))
+ggsave(paste0(\"./Figures/PlasmaCell_Expanding_Percentage_BySample.pdf\"), height = 5, width = 9)
+
+
+UMAPPlot(TotalPT, group.by = \"seurat_clusters\", cols = colors.use, label = T) + theme(legend.position = \"none\")
+ggsave(\"./Figures/Preliminary_Cell_Types.pdf\")
+
+FeaturePlot(TotalPT, \"MKI67\", cols = c(grey(0.7), colors.use[1]), max.cutoff = 0.1) + theme(legend.position = \"none\")
+ggsave(\"./Figures/MKI67_FeaturePlot.pdf\")
+FeaturePlot(TotalPT, \"PCNA\", cols = c(grey(0.7), colors.use[2]), max.cutoff = 0.1) + theme(legend.position = \"none\")
+ggsave(\"./Figures/PCNA_FeaturePlot.pdf\")
+
+FeaturePlot(TotalPT, \"ITGAX\", cols = c(grey(0.7), colors.use[1]), max.cutoff = 0.1) + theme(legend.position = \"none\")
+ggsave(\"./Figures/CD11C_RNA_Expression.pdf\")
+
+TotalPT@meta.data$ClassSwitch <- rep(F, nrow(TotalPT@meta.data))
+TotalPT@meta.data[WhichCells(TotalPT, expression = `Isotype` %in% c(\"a1\", \"a2\", \"g1\", \"g2\", \"g3\", \"g4\", \"e\")), \"ClassSwitch\"] <- T
+TotalPT@meta.data[which(is.na(TotalPT@meta.data$Isotype)), \"ClassSwitch\"] <- NA
+
+UMAPPlot(TotalPT, group.by = \"ClassSwitch\", cols = colors.use)
+ggsave(\"./Figures/ClassSwitch.pdf\")
+
+UMAPPlot(TotalPT, group.by = \"ClassSwitch\", cols = colors.use)
+ggsave(\"./Figures/ClassSwitch.pdf\")
+
+
+
+
+
+
+
+percent.memory <- data.frame(samples = unique(TotalPT@meta.data$orig.ident),
+                             freq = rep(0, length(unique(TotalPT@meta.data$orig.ident))))
+rownames(percent.memory) <- percent.memory$samples
+for(id in unique(TotalPT@meta.data$orig.ident)){
+  nMemory <- sum(TotalPT@meta.data[, \"orig.ident\"] == id & TotalPT@meta.data[, \"seurat_clusters\"] == \"Memory\")
+  freqMemory <- nMemory / sum(TotalPT@meta.data[, \"orig.ident\"] == id)
+  percentMemory <- freqMemory * 100
+  percent.memory[id, \"freq\"] <- percentMemory
+}
+percent.memory$samples <- factor(percent.memory$samples,
+                          levels = c(\"PID4101\", \"PID4101V\", \"PID4XXXV\", \"PID4128V\", \"PID4134\", \"PID4132\", \"PID4130\"))
+percent.memory$condition <- plyr::mapvalues(x = percent.memory$samples, 
+                                            from = c(\"PID4101\", \"PID4101V\", \"PID4XXXV\", 
+                                                     \"PID4128V\", \"PID4134\", 
+                                                     \"PID4132\", \"PID4130\"),
+                                            to = c(\"Control\", \"Vaccinated (Pfizer)\", \"Vaccinated (Moderna)\", 
+                                                     \"Vaccinated Convalescent\", \"Infected 16D\", 
+                                                     \"Infected 30D\", \"Infected 80D\"))
+ggplot(data = percent.memory, aes(x = samples, y = freq, fill = condition), ) +
+    geom_col() + scale_fill_manual(values = colors.use) +
+    ggtitle(paste(\"Percentage Memory Cells (of total B cells) by Sample\"))
+ggsave(paste0(\"./Figures/MemoryCell_Percentage_BySample.pdf\"), height = 5, width = 9)
+
+
+
+memory.switched <- data.frame(samples = unique(TotalPT@meta.data$orig.ident),
+                             freq = rep(0, length(unique(TotalPT@meta.data$orig.ident))))
+rownames(memory.switched) <- memory.switched$samples
+
+for(id in unique(TotalPT@meta.data$orig.ident)){
+  nMemorySw <- sum(TotalPT@meta.data[, \"orig.ident\"] == id & TotalPT@meta.data[, \"seurat_clusters\"] == \"Memory\" & TotalPT@meta.data[, \"ClassSwitch\"] == TRUE, na.rm = T)
+  freqMemorySw <- nMemorySw / sum(TotalPT@meta.data[, \"orig.ident\"] == id & TotalPT@meta.data[, \"seurat_clusters\"] == \"Memory\")
+  percentMemorySw <- freqMemorySw * 100
+  memory.switched[id, \"freq\"] <- percentMemorySw
+}
+memory.switched$samples <- factor(memory.switched$samples,
+                          levels = c(\"PID4101\", \"PID4101V\", \"PID4XXXV\", \"PID4128V\", \"PID4134\", \"PID4132\", \"PID4130\"))
+memory.switched$condition <- plyr::mapvalues(x = memory.switched$samples, 
+                                            from = c(\"PID4101\", \"PID4101V\", \"PID4XXXV\", 
+                                                     \"PID4128V\", \"PID4134\", 
+                                                     \"PID4132\", \"PID4130\"),
+                                            to = c(\"Control\", \"Vaccinated (Pfizer)\", \"Vaccinated (Moderna)\", 
+                                                     \"Vaccinated Convalescent\", \"Infected 16D\", 
+                                                     \"Infected 30D\", \"Infected 80D\"))
+ggplot(data = memory.switched, aes(x = samples, y = freq, fill = condition), ) +
+    geom_col() + scale_fill_manual(values = colors.use) +
+    ggtitle(paste(\"Percentage Switched Memory Cells (of total memory cells) by Sample\"))
+ggsave(paste0(\"./Figures/SwitchedMemory_Percentage_BySample.pdf\"), height = 5, width = 9)
+
+
+
+TotalPT@meta.data$CD11C <- rep(F, nrow(TotalPT@meta.data))
+TotalPT@meta.data[WhichCells(TotalPT, expression = `ITGAX` > 0), \"CD11C\"] <- T
+
+memory.activate <- data.frame(samples = unique(TotalPT@meta.data$orig.ident),
+                             freq = rep(0, length(unique(TotalPT@meta.data$orig.ident))))
+rownames(memory.activate) <- memory.activate$samples
+
+
+
+for(id in unique(TotalPT@meta.data$orig.ident)){
+  nMemoryAc <- sum(TotalPT@meta.data[, \"orig.ident\"] == id & TotalPT@meta.data[, \"seurat_clusters\"] == \"Memory\" & TotalPT@meta.data[, \"CD11C\"] == TRUE, na.rm = T)
+  freqMemoryAc <- nMemoryAc / sum(TotalPT@meta.data[, \"orig.ident\"] == id & TotalPT@meta.data[, \"seurat_clusters\"] == \"Memory\")
+  percentMemoryAc <- freqMemoryAc * 100
+  memory.activate[id, \"freq\"] <- percentMemoryAc
+}
+memory.activate$samples <- factor(memory.activate$samples,
+                          levels = c(\"PID4101\", \"PID4101V\", \"PID4XXXV\", \"PID4128V\", \"PID4134\", \"PID4132\", \"PID4130\"))
+memory.activate$condition <- plyr::mapvalues(x = memory.activate$samples, 
+                                            from = c(\"PID4101\", \"PID4101V\", \"PID4XXXV\", 
+                                                     \"PID4128V\", \"PID4134\", 
+                                                     \"PID4132\", \"PID4130\"),
+                                            to = c(\"Control\", \"Vaccinated (Pfizer)\", \"Vaccinated (Moderna)\", 
+                                                     \"Vaccinated Convalescent\", \"Infected 16D\", 
+                                                     \"Infected 30D\", \"Infected 80D\"))
+ggplot(data = memory.activate, aes(x = samples, y = freq, fill = condition), ) +
+    geom_col() + scale_fill_manual(values = colors.use) +
+    ggtitle(paste(\"Percentage CD11C+ (RNA) Memory Cells (of total memory cells) by Sample\"))
+ggsave(paste0(\"./Figures/Activated_Memory_Percentage_BySample.pdf\"), height = 5, width = 9)
+
+
+
+plasma.cells <- subset(TotalPT, cells = WhichCells(TotalPT, expression = `seurat_clusters` == \"Plasma\"))
+Idents(plasma.cells) <- plasma.cells[[\"orig.ident\"]]
+m <- FindMarkers(plasma.cells, only.pos = T,
+            ident.1 = c(\"PID4101V\", \"PID4XXXV\"),
+            ident.2 = c(\"PID4132\", \"PID4134\"))
+write.csv(m, file = \"./Data/Plasma_VaxNeg_v_AcuteInfection_markers.csv\")
+
+m <- FindMarkers(plasma.cells, only.pos = T, 
+            ident.2 = c(\"PID4101V\", \"PID4XXXV\"),
+            ident.1 = c(\"PID4132\", \"PID4134\"))
+write.csv(m, file = \"./Data/Plasma_AcuteInfection_v_VaxNeg_markers.csv\")
+
+saveRDS(TotalPT, \"./Data/Drop27_VDJ.rds\")
+```"

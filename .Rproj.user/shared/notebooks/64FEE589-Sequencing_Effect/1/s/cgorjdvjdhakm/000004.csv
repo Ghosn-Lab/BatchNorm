@@ -1,0 +1,6 @@
+"0","# PBMC Sample 5-A
+data(package = BatchNorm, PBMC5A_Single_ID)
+"
+"2","Error in data(package = BatchNorm, PBMC5A_Single_ID) : 
+  object 'BatchNorm' not found
+"

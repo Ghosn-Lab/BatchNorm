@@ -1,0 +1,137 @@
+"0","```r
+TotalPT <- readRDS(\"./Data/TotalPT.rds\")
+# already mitofiltered & RNA lognormalized
+
+
+PTs.list <- SplitObject(TotalPT, split.by = \"orig.ident\")
+features.list <- list()
+for (i in 1:length(PTs.list)) {
+    PTs.list[[i]] <- PTs.list[[i]] %>%
+                       FindVariableFeatures(selection.method = \"vst\", 
+                                            nfeatures = 2000)
+    features.list[[i]] <- PTs.list[[i]]@assays$RNA@var.features
+}
+TotalPT@assays$RNA@var.features <- Reduce(intersect, features.list)
+
+TotalPT <- TotalPT %>%
+           ScaleData() %>% 
+           RunPCA(npcs = 30)
+
+
+# Identify correct numbers of PCs
+# TotalPT.pca.test <- TestPCA(TotalPT)
+# TotalPT.pca.test[, 1:20]
+# 7 PCs with z > 1
+# rm(TotalPT.pca.test)
+TotalPT <- TotalPT %>% 
+           RunUMAP(reduction = \"pca\", dims = 1:7) %>%
+           FindNeighbors(reduction = \"pca\", dims = 1:7) %>%
+           FindClusters(resolution = .8)
+# Plot by donor ID
+DimPlot(TotalPT, cols = colors.use, pt.size = 2, label = F, 
+        group.by = \"orig.ident\") +
+  ggtitle(\"CHIRP B-Cell Samples (donor ID)\")
+ggsave(\"./Figures/TotalPT_UMAP.pdf\")
+
+TotalPT <- combineExpression(combined, TotalPT, 
+            cloneCall = \"aa\", groupBy = \"sample\", 
+            cloneTypes = c('Single' = 1, 'Small' = 5, 
+                           'Medium' = 20, 'Large' = 50, 'Hyperexpanded' = 500), 
+            proportion = F)
+
+unique(TotalPT[['cloneType']])
+
+TotalPT$cloneType <- factor(TotalPT$cloneType, 
+                levels = c(\"Large (20 < X <= 50)\", 
+                            \"Medium (5 < X <= 20)\", 
+                            \"Small (1 < X <= 5)\", 
+                            \"Single (0 < X <= 1)\", NA))
+
+colorblind_vector <- colorRampPalette(c(\"#FF4B20\", \"#FFB433\", 
+                            \"#C6FDEC\", \"#7AC5FF\", \"#0348A6\"))
+
+DimPlot(TotalPT, group.by = \"Frequency\") +
+    scale_color_manual(values = viridis(17), na.value=\"grey\")
+DimPlot(TotalPT, group.by = \"cloneType\", pt.size = 2) +
+    scale_color_manual(values = c(viridis(3), grey(0.5, alpha = 0.3)), na.value = grey(0.7, alpha = 0.3))
+ggsave(\"./Figures/Repertoire/cloneExpansion.pdf\", height = 7, width = 10)
+
+DimPlot(TotalPT, 
+        cells.highlight = WhichCells(TotalPT,
+                                     expression = orig.ident %in% c(\"PID4101V\", \"PID4128V\", \"PID4XXXV\")))
+
+DimPlot(TotalPT, 
+        cells.highlight = WhichCells(TotalPT,
+                                     expression = `adt_CoV2-S1` > 90 & orig.ident %in% c(\"PID4101V\", \"PID4128V\", \"PID4XXXV\")))
+
+DimPlot(TotalPT, 
+        cells.highlight = WhichCells(TotalPT,
+                                     expression = `adt_CoV2-S1` >= 90 & orig.ident %in% c(\"PID4101V\", \"PID4128V\", \"PID4XXXV\") & `adt_IgG` >= 20))
+ggsave(\"./Figures/Vaccinated_S1_IgG.pdf\", height = 5, width = 7)
+
+DimPlot(TotalPT, 
+        cells.highlight = WhichCells(TotalPT,
+                                     expression = `adt_CoV2-S1` >= 90 & orig.ident %in% c(\"PID4101V\", \"PID4128V\", \"PID4XXXV\") & `adt_IgM` >= 20))
+ggsave(\"./Figures/Vaccinated_S1_IgM.pdf\", height = 5, width = 7)
+
+
+
+
+FeaturePlot(TotalPT, \"Frequency\", pt.size = 2, cols = viridis(25))
+saveRDS(TotalPT, \"./Data/Repertoire_Seurat.rds\")
+# Switch to Github version of scRepertoire
+#devtools::install_github(\"ncborcherding/scRepertoire\")
+#detach(\"package:scRepertoire\", unload = TRUE)
+#library(scRepertoire)
+
+clonalOverlay(TotalPT, reduction = \"umap\", 
+              freq.cutpoint = 2, bins = 5)
+ggsave(\"./Figures/Repertoire/sc_ClonalFrequency_Contour.pdf\")
+clonalOverlay(TotalPT, reduction = \"umap\", 
+              freq.cutpoint = 2, bins = 5)
+# Add some metadata
+
+hist(TotalPT@meta.data$Frequency, breaks = 25)
+
+DimPlot(TotalPT, cells.highlight = WhichCells(TotalPT, expression = Frequency > 10)) # Find percentile breaks
+quantile(TotalPT[[\"Frequency\"]], probs = seq(0, 1, by= 0.01), na.rm = T) 
+# Frequency = 4 is the 98th percentile
+DimPlot(TotalPT, cells.highlight = WhichCells(TotalPT, expression = Frequency > 4))
+DimPlot(TotalPT, cells.highlight = WhichCells(TotalPT,
+                                              expression = `adt_IgM` > 50))
+FeaturePlot(TotalPT, \"adt_IgM\")
+
+
+Idents(TotalPT) <- TotalPT[[\"Status\"]]
+circles <- getCirclize(TotalPT, groupBy = \"Status\")
+
+#Just assigning the normal colors to each cluster
+grid.cols <- scales::hue_pal()(length(unique(TotalPT@active.ident)))
+names(grid.cols) <- levels(TotalPT@active.ident)
+
+#Graphing the chord diagram
+circlize::chordDiagram(circles, self.link = 1, grid.col = grid.cols)
+
+Idents(vaccinated) <- vaccinated[[\"orig.ident\"]]
+ d <- as.data.frame(FetchData(object = vaccinated, 
+                   vars = c('adt_CoV2-S1', \"adt_IgM\", \"adt_IgG\", \"adt_IgA\", \"orig.ident\")))
+  ## Format colnames to match FeatureScatter syntax
+  colnames(d) <- c('adt_CoV2.S1', \"adt_IgM\", \"adt_IgG\", \"adt_IgA\", \"colors\")
+  p1 <- FeatureScatter(vaccinated, 'adt_CoV2-S1', \"adt_IgM\",
+                      cols = colors.use, plot.cor = F) +
+       geom_density2d(data = d, color = \"black\", size = 1) +
+       theme_gray() + theme(legend.position = \"none\") + 
+       labs(x = 'adt_CoV2-S1', 
+            y = \"Surface IgM (ADT)\")
+  p2 <- FeatureScatter(vaccinated, 'adt_CoV2-S1', \"adt_IgG\",
+                      cols = colors.use, plot.cor = F) +
+       geom_density2d(data = d, color = \"black\", size = 1) +
+       theme_gray() + 
+       labs(x = 'adt_CoV2-S1', 
+            y = \"Surface IgG (ADT)\")
+  p <- plot_grid(p1, p2, ncol = 2, rel_widths = c(1,1.43))  
+   t <- ggdraw() + 
+       draw_label(\"Vaccinated Donors\", fontface = 'bold')
+  plot_grid(t, p, ncol = 1, rel_heights = c(0.05, 1))
+  ggsave(\"./Figures/Biaxial_Antigen/Vaccinated_IgM_IgG_Only_S1.pdf\", height = 5, width = )
+```"

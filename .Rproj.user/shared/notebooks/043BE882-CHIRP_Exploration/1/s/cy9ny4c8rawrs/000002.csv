@@ -1,0 +1,52 @@
+"0","```r
+assign_lineages(\"~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/UCSF/PID4101/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4101.csv\", pct_homology = 0.85)
+
+```"
+"1","
+── Column specification ──────────────────────────────────────────────────────────────────────────────────────────────────────
+cols(
+  .default = col_double(),
+  indexed_contig_id = col_character(),
+  indexed_barcode = col_character(),
+  index = col_character(),
+  seq = col_character(),
+  chain_type = col_character(),
+  isotype = col_character(),
+  c_gene = col_character(),
+  orientation = col_character(),
+  v_domain_functionality = col_character(),
+  v_gene = col_character(),
+  primary_v_allele = col_character(),
+  multiple_v_alleles_possible = col_logical(),
+  v_region_identity_nt = col_character(),
+  j_gene = col_character(),
+  primary_j_allele = col_character(),
+  multiple_j_alleles_possible = col_logical(),
+  j_region_identity_nt = col_character(),
+  nt_vdj = col_character(),
+  nt_vj = col_character(),
+  nt_v = col_character()
+  # ... with 24 more columns
+)
+ℹ Use `spec()` for the full column specifications.
+"
+"1","[1] \"100 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"200 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"300 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"400 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"500 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"600 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"700 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"800 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"900 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"1000 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"1100 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"1200 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"1300 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"1400 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"1500 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"1600 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"Processing complete!\"
+"
+"1","The working directory was changed to /Users/Ben/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/UCSF/PID4101/VDJ/IMGT/SuPERR-Seq_processed inside a notebook chunk. The working directory will be reset when the chunk is finished running. Use the knitr root.dir option in the setup chunk to change the working directory for notebook chunks.
+"

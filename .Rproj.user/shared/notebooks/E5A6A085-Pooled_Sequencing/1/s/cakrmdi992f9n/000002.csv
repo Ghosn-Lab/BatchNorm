@@ -1,0 +1,18 @@
+"0","# PBMC Sample 4-B
+data(package = 'BatchNorm', PBMC4B_Single_ID)
+S4Bcms <- GetCMS(object = PBMCs, 
+                sample.ID = ""Sample_4B"", 
+                reference.ID = PBMC4B_Single_ID)
+# PBMC Sample 5-A
+data(package = 'BatchNorm', PBMC5A_Single_ID)
+S5Acms <- GetCMS(object = PBMCs, 
+                sample.ID = ""Sample_5A"", 
+                reference.ID = PBMC5A_Single_ID)
+
+# Average CMS
+mean(c(S4Bcms, S5Acms))
+"
+"1","[1]"
+"1"," 0.06950476"
+"1","
+"

@@ -1,0 +1,17 @@
+"0","```r
+d <- as.data.frame(FetchData(object = TotalPBMC, 
+                   vars = c(\"adt_CD56-TotalSeqC\", \"adt_CD3-TotalSeqC\")))
+## Format colnames to match FeatureScatter syntax
+colnames(d) <- c(\"adt_CD56.TotalSeqC\", \"adt_CD3.TotalSeqC\")
+p <- FeatureScatter(TotalPBMC, \"adt_CD56-TotalSeqC\", \"adt_CD3-TotalSeqC\",
+                    cols = colors.use, plot.cor = F) +
+    # geom_density2d(data = d, color = \"black\", size = 1) +
+     theme_gray() +
+     labs(x = \"CD56 (ADT)\", 
+          y = \"CD3 (ADT)\") +
+  geom_vline(xintercept = 4) + geom_hline(yintercept = 10)
+p
+ggsave(\"./Workflow/Figures/PBMCs_CD56CD3.pdf\")
+```"
+"1","Saving 7.29 x 4.51 in image
+"

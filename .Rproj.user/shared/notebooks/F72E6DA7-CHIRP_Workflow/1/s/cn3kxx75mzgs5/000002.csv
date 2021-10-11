@@ -1,0 +1,302 @@
+"0","```r
+
+##############
+## PBMC001 ###
+############## PBMC001, COVID Negative Control
+# 5GEX_PBMC1_36yoF_F1/
+dd <- \"~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/PBMC/\"
+
+mtx.list <- Read10X(data.dir = paste0(dd, '5GEX_PBMC1_36yoF_F1/Batch2/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+
+```"
+"1","10X data contains more than one type and is being returned as a list containing matrices of each type.
+"
+"0","```r
+PBMC001 <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = \"PBMC001\")
+PBMC001[[\"percent.mito\"]] <- PercentageFeatureSet(PBMC001, pattern = \"^MT-\")
+dsb.mtx <- read.csv(paste0(dd, '5GEX_PBMC1_36yoF_F1/Batch2/adt_dsb.csv'), row.names = 1, header = T)
+colnames(dsb.mtx) <- gsub(pattern = \".1\", replacement = \"\", x = colnames(dsb.mtx))
+PBMC001[['ADT']] <- CreateAssayObject(counts = dsb.mtx)
+```"
+"1","Feature names cannot have underscores ('_'), replacing with dashes ('-')
+"
+"0","```r
+PBMC001 <- RenameCells(PBMC001, add.cell.id = \"PBMC001\")
+ldf_PBMC001 <- assign_lineages(data = \"~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/PBMC/5GEX_PBMC1_36yoF_F1/Batch2/VDJ_Processed/IMGT_outs/SS_outs/SS_processed_long_table_PBMC001.csv\", pct_homology = 0.85, return_df = T)
+```"
+"1","
+── Column specification ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+cols(
+  .default = col_double(),
+  indexed_contig_id = col_character(),
+  indexed_barcode = col_character(),
+  index = col_character(),
+  seq = col_character(),
+  chain_type = col_character(),
+  isotype = col_character(),
+  c_gene = col_character(),
+  orientation = col_character(),
+  v_domain_functionality = col_character(),
+  v_gene = col_character(),
+  primary_v_allele = col_character(),
+  multiple_v_alleles_possible = col_logical(),
+  v_region_identity_nt = col_character(),
+  j_gene = col_character(),
+  primary_j_allele = col_character(),
+  multiple_j_alleles_possible = col_logical(),
+  j_region_identity_nt = col_character(),
+  nt_vdj = col_character(),
+  nt_vj = col_character(),
+  nt_v = col_character()
+  # ... with 24 more columns
+)
+ℹ Use `spec()` for the full column specifications.
+"
+"1","[1] \"100 out of 182 v/j/cdr3 length families assigned\"
+"
+"0","```r
+PBMC001 <- PBMC001 %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = \"LogNormalize\",
+                         assay = \"RNA\",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = \"PBMC001\", lineage_df = ldf_PBMC001, 
+                  cellrangervdj = paste0(dd, \"5GEX_PBMC1_36yoF_F1/Batch2/Filtered/filtered_contig_annotations.csv\"))
+```"
+"1","Performing log-normalization
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+"
+"0","```r
+# rm(ldf_PBMC001)
+
+##############
+## PBMC002 ###
+############## PBMC002, COVID Negative Control
+# 5GEX_PBMC2_27yoF_G1/
+
+mtx.list <- Read10X(data.dir = paste0(dd, '5GEX_PBMC2_27yoF_G1/Batch2/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+```"
+"1","10X data contains more than one type and is being returned as a list containing matrices of each type.
+"
+"0","```r
+PBMC002 <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = \"PBMC002\")
+PBMC002[[\"percent.mito\"]] <- PercentageFeatureSet(PBMC002, pattern = \"^MT-\")
+dsb.mtx <- read.csv(paste0(dd, '5GEX_PBMC2_27yoF_G1/Batch2/adt_dsb.csv'), row.names = 1, header = T)
+colnames(dsb.mtx) <- gsub(pattern = \".1\", replacement = \"\", x = colnames(dsb.mtx))
+PBMC002[['ADT']] <- CreateAssayObject(counts = dsb.mtx)
+```"
+"1","Feature names cannot have underscores ('_'), replacing with dashes ('-')
+"
+"0","```r
+PBMC002 <- RenameCells(PBMC002, add.cell.id = \"PBMC002\")
+ldf_PBMC002 <- assign_lineages(data = \"~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/PBMC/5GEX_PBMC2_27yoF_G1/Batch2/VDJ_Processed/IMGT_outs/SS_outs/SS_processed_long_table_PBMC002.csv\", pct_homology = 0.85, return_df = T)
+```"
+"1","
+── Column specification ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+cols(
+  .default = col_double(),
+  indexed_contig_id = col_character(),
+  indexed_barcode = col_character(),
+  index = col_character(),
+  seq = col_character(),
+  chain_type = col_character(),
+  isotype = col_character(),
+  c_gene = col_character(),
+  orientation = col_character(),
+  v_domain_functionality = col_character(),
+  v_gene = col_character(),
+  primary_v_allele = col_character(),
+  multiple_v_alleles_possible = col_logical(),
+  v_region_identity_nt = col_character(),
+  j_gene = col_character(),
+  primary_j_allele = col_character(),
+  multiple_j_alleles_possible = col_logical(),
+  j_region_identity_nt = col_character(),
+  nt_vdj = col_character(),
+  nt_vj = col_character(),
+  nt_v = col_character()
+  # ... with 24 more columns
+)
+ℹ Use `spec()` for the full column specifications.
+"
+"0","```r
+PBMC002 <- PBMC002 %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = \"LogNormalize\",
+                         assay = \"RNA\",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = \"PBMC002\", lineage_df = ldf_PBMC002, 
+                  cellrangervdj = paste0(dd, \"5GEX_PBMC2_27yoF_G1/Batch2/Filtered/filtered_contig_annotations.csv\"))
+```"
+"1","Performing log-normalization
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+"
+"0","```r
+# rm(ldf_PBMC002)
+
+##############
+## PBMC003 ###
+############## PBMC003, COVID Negative Control
+# 5GEX_PBMC3_46yoM_H1/
+
+mtx.list <- Read10X(data.dir = paste0(dd, '5GEX_PBMC3_46yoM_H1/Batch2/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+```"
+"1","10X data contains more than one type and is being returned as a list containing matrices of each type.
+"
+"0","```r
+PBMC003 <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = \"PBMC003\")
+PBMC003[[\"percent.mito\"]] <- PercentageFeatureSet(PBMC003, pattern = \"^MT-\")
+dsb.mtx <- read.csv(paste0(dd, '5GEX_PBMC3_46yoM_H1/Batch2/adt_dsb.csv'), row.names = 1, header = T)
+colnames(dsb.mtx) <- gsub(pattern = \".1\", replacement = \"\", x = colnames(dsb.mtx))
+PBMC003[['ADT']] <- CreateAssayObject(counts = dsb.mtx)
+```"
+"1","Feature names cannot have underscores ('_'), replacing with dashes ('-')
+"
+"0","```r
+PBMC003 <- RenameCells(PBMC003, add.cell.id = \"PBMC003\")
+ldf_PBMC003 <- assign_lineages(data = \"~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/PBMC/5GEX_PBMC3_46yoM_H1/Batch2/VDJ_Processed/IMGT_outs/SS_outs/SS_processed_long_table_PBMC003.csv\", pct_homology = 0.85, return_df = T)
+```"
+"1","
+── Column specification ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+cols(
+  .default = col_double(),
+  indexed_contig_id = col_character(),
+  indexed_barcode = col_character(),
+  index = col_character(),
+  seq = col_character(),
+  chain_type = col_character(),
+  isotype = col_character(),
+  c_gene = col_character(),
+  orientation = col_character(),
+  v_domain_functionality = col_character(),
+  v_gene = col_character(),
+  primary_v_allele = col_character(),
+  multiple_v_alleles_possible = col_logical(),
+  v_region_identity_nt = col_character(),
+  j_gene = col_character(),
+  primary_j_allele = col_character(),
+  multiple_j_alleles_possible = col_logical(),
+  j_region_identity_nt = col_character(),
+  nt_vdj = col_character(),
+  nt_vj = col_character(),
+  nt_v = col_character()
+  # ... with 24 more columns
+)
+ℹ Use `spec()` for the full column specifications.
+"
+"1","[1] \"100 out of 332 v/j/cdr3 length families assigned\"
+[1] \"200 out of 332 v/j/cdr3 length families assigned\"
+[1] \"300 out of 332 v/j/cdr3 length families assigned\"
+"
+"0","```r
+PBMC003 <- PBMC003 %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = \"LogNormalize\",
+                         assay = \"RNA\",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = \"PBMC003\", lineage_df = ldf_PBMC003, 
+                  cellrangervdj = paste0(dd, \"5GEX_PBMC3_46yoM_H1/Batch2/Filtered/filtered_contig_annotations.csv\"))
+```"
+"1","Performing log-normalization
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+"
+"0","```r
+# rm(ldf_PBMC003)
+
+
+#########################
+## MERGE Pt REPLICATES ##
+#########################
+samples <- c('PBMC001', 'PBMC002', 'PBMC003')
+TotalPBMC <- merge(PBMC001, y = c(PBMC002, PBMC003), merge.data = T)
+rm(list = samples)
+
+# Add ribosomal percentage (regex: \"starts with 'RP' followed by either 'S' or 'L'\")
+TotalPBMC[[\"percent.ribo\"]] <- PercentageFeatureSet(TotalPBMC, pattern = \"^RP(S|L)\")
+
+############################
+## Add Metadata Variables ##
+############################
+
+# Sex
+TotalPBMC$sex <- plyr::mapvalues(
+    x = TotalPBMC$orig.ident, 
+    from = samples, 
+    to = c('Female', 'Female', 'Male')
+)
+# Age
+TotalPBMC$age <- plyr::mapvalues(
+    x = TotalPBMC$orig.ident, 
+    from = samples, 
+    to = c(36, 27, 46)
+)
+# Vaccination / Infection Status
+TotalPBMC$Status <- plyr::mapvalues(
+    x = TotalPBMC$orig.ident, 
+    from = samples, 
+    to = c('Negative CTL', 'Negative CTL', 'Negative CTL')
+)
+# Date of 10X Encapsulation
+TotalPBMC$date.10x <- plyr::mapvalues(
+    x = TotalPBMC$orig.ident, 
+    from = samples, 
+    to = c('2019.XX.XX', '2019.XX.XX', '2019.XX.XX')
+)
+# Days from PCR+ to 10X
+TotalPBMC$days.after.pcr <- plyr::mapvalues(
+    x = TotalPBMC$orig.ident, 
+    from = samples, 
+    to = c(NA, NA, NA)
+)
+# 10X Estimated Cells
+TotalPBMC$nCells.10X <- plyr::mapvalues(
+    x = TotalPBMC$orig.ident, 
+    from = samples, 
+    to = c(4034, 2302, 6423)
+)
+# 10X Mean Reads per Cell
+TotalPBMC$MeanReads.10X <- plyr::mapvalues(
+    x = TotalPBMC$orig.ident, 
+    from = samples, 
+    to = c(138274, 150868, 45805))
+
+# 10X Median Genes per Cell
+TotalPBMC$MeanGenes.10X <- plyr::mapvalues(
+    x = TotalPBMC$orig.ident, 
+    from = samples, 
+    to = c(1422, 1411, 1363))
+
+
+TotalPBMC <- subset(TotalPBMC, subset = nCount_VDJ > 0)
+
+TotalPBMC$IGHSum <- colSums(TotalPBMC@assays$RNA@counts[grep(\"^IGH\", rownames(TotalPBMC@assays$RNA@counts)), ])
+
+
+###########################
+## Biaxial antigen plots ##
+###########################
+
+d <- as.data.frame(FetchData(object = TotalPBMC, 
+                   vars = c(\"adt_CD20-TotalSeqC\", \"adt_CD19-TotalSeqC\")))
+## Format colnames to match FeatureScatter syntax
+colnames(d) <- c(\"adt_CD20.TotalSeqC\", \"adt_CD19.TotalSeqC\")
+p <- FeatureScatter(TotalPBMC, \"adt_CD20-TotalSeqC\", \"adt_CD19-TotalSeqC\",
+                    cols = colors.use, plot.cor = F) +
+    # geom_density2d(data = d, color = \"black\", size = 1) +
+     theme_gray() +
+     labs(x = \"CD20 (ADT)\", 
+          y = \"CD19 (ADT)\")
+p
+ggsave(\"./Workflow/Figures/PBMCS_CD19CD20.pdf\")
+```"
+"1","Saving 7.29 x 4.51 in image
+"

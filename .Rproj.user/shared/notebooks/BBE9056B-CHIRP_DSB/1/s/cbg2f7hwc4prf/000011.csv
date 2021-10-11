@@ -1,0 +1,14 @@
+"0","### DSB normalization
+adt.norm <- DSBNormalizeProtein(cell_protein_matrix = adt.fil, 
+                                empty_drop_matrix = adt.empty, 
+                                use.isotype.control = FALSE)
+"
+"2","denoise.counts = TRUE with use.isotype.control = FALSE is not recommended if isotype controls are available. If the raw data include isotype controls, set `denoise.counts` = TRUE `use.isotype.control` = TRUE and set `isotype.control.name.vec` to a vector of isotype control protien names from cell_protein_matrix"
+"1","[1]"
+"1"," ""correcting ambient protein background noise"""
+"1","
+"
+"1","[1]"
+"1"," ""calculating dsb technical component for each cell to remove cell to cell techncial noise"""
+"1","
+"

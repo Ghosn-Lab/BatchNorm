@@ -1,0 +1,8 @@
+"0","```r
+tab <- rbind(table(PBMC4@meta.data[which(PBMC4[[\"orig.ident\"]] == \"Sample_4A\"), \"Cell_Type\"]),
+      table(PBMC4@meta.data[which(PBMC4[[\"orig.ident\"]] == \"Sample_4A\"), \"Cell_IDs\"]))
+
+```"
+"1","Error in table(PBMC4@meta.data[which(PBMC4[[\"orig.ident\"]] == \"Sample_4A\"),  : 
+  object 'PBMC4' not found
+"

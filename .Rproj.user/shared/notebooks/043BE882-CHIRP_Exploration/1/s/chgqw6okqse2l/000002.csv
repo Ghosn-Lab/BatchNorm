@@ -1,0 +1,31 @@
+"0","```r
+TotalPT <- readRDS(\"./Data/TotalPT_VDJ.rds\")
+
+plasma.cells <- WhichCells(TotalPT, expression = `nCount_VDJ` >= 500)
+TotalPT@meta.data$is.plasma.cell <- rep(F, nrow(TotalPT@meta.data))
+TotalPT@meta.data[plasma.cells, \"is.plasma.cell\"] <- T
+
+Idents(TotalPT) <- TotalPT[[\"orig.ident\"]]
+TotalPT <- subset(TotalPT, idents = \"PID4127\", invert = T)
+
+TotalPT <- TotalPT %>%
+           FindVariableFeatures(selection.method = \"vst\", nfeatures = 2000) %>%
+           ScaleData() %>% 
+           RunPCA(npcs = 30)
+# Identify correct numbers of PCs
+# TotalPT.pca.test <- TestPCA(TotalPT)
+# TotalPT.pca.test[, 1:20]
+# 14 PCs with z > 1
+# rm(TotalPT.pca.test)
+
+TotalPT <- TotalPT %>% 
+           RunUMAP(reduction = \"pca\", dims = 1:14) %>%
+           FindNeighbors(reduction = \"pca\", dims = 1:14) %>%
+           FindClusters(resolution = .8)
+
+top.VJ.frequencies <- sort(unique(TotalPT@meta.data$IGH_VJ_freq), decreasing = T)[1:20]
+top.VJ.cells <- data.frame(x = rownames(TotalPT@meta.data)[which(TotalPT@meta.data$IGH_VJ_freq %in% top.VJ.frequencies)])
+top.VJ.cells <- top.VJ.cells %>% 
+                separate(x, c(\"Sample\", \"Barcode\"), sep = \"_\")
+saveRDS(top.VJ.cells, \"./Data/top.VJ.cells.rds\")
+```"

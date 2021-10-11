@@ -1,0 +1,67 @@
+"0","```r
+assign_lineages(\"~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/UCSF/PID4101/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4101.csv\", pct_homology = 0.7)
+assign_lineages(data = \"~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/UCSF/PID4127/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4127.csv\", pct_homology = 0.7)
+assign_lineages(\"~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/UCSF/PID4130/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4130.csv\", pct_homology = 0.7)
+assign_lineages(\"~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/UCSF/PID4132/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4132.csv\", pct_homology = 0.7)
+assign_lineages(\"~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/UCSF/PID4134/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4134.csv\", pct_homology = 0.7)
+assign_lineages(\"~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/UCSF/PID4101V/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4101V.csv\", pct_homology = 0.7)
+assign_lineages(\"~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/UCSF/PID4128V/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4128V.csv\", pct_homology = 0.7)
+assign_lineages(\"~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/UCSF/PID4XXXV/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4XXXV.csv\", pct_homology = 0.7)
+
+TotalPT <- readRDS(\"./Data/TotalPT.rds\")
+Idents(TotalPT) <- TotalPT[[\"orig.ident\"]]
+PID4101 <- subset(TotalPT, idents = \"PID4101\")
+PID4101 <- addVDJ(obj = PID4101, SampleID = \"PID4101\")
+PID4127 <- subset(TotalPT, idents = \"PID4127\")
+PID4127 <- addVDJ(obj = PID4127, SampleID = \"PID4127\")
+PID4130 <- subset(TotalPT, idents = \"PID4130\")
+PID4130 <- addVDJ(obj = PID4130, SampleID = \"PID4130\")
+PID4132 <- subset(TotalPT, idents = \"PID4132\")
+PID4132 <- addVDJ(obj = PID4132, SampleID = \"PID4132\")
+PID4134 <- subset(TotalPT, idents = \"PID4134\")
+PID4134 <- addVDJ(obj = PID4134, SampleID = \"PID4134\")
+PID4101V <- subset(TotalPT, idents = \"PID4101V\")
+PID4101V <- addVDJ(obj = PID4101V, SampleID = \"PID4101V\")
+PID4128V <- subset(TotalPT, idents = \"PID4128V\")
+PID4128V <- addVDJ(obj = PID4128V, SampleID = \"PID4128V\")
+PID4XXXV <- subset(TotalPT, idents = \"PID4XXXV\")
+PID4XXXV <- addVDJ(obj = PID4XXXV, SampleID = \"PID4XXXV\")
+
+TotalPT <- merge(x = PID4101, y = c(PID4127, PID4130, PID4132, PID4134, PID4101V, PID4128V, PID4XXXV),
+                 merge.data = T)
+
+plasma.cells <- WhichCells(TotalPT, expression = `nCount_VDJ` >= 500)
+TotalPT@meta.data$is.plasma.cell <- rep(F, nrow(TotalPT@meta.data))
+TotalPT@meta.data[plasma.cells, \"is.plasma.cell\"] <- T
+
+Idents(TotalPT) <- TotalPT[[\"orig.ident\"]]
+TotalPT <- subset(TotalPT, idents = \"PID4127\", invert = T)
+
+TotalPT <- TotalPT %>%
+           FindVariableFeatures(selection.method = \"vst\", nfeatures = 2000) %>%
+           ScaleData() %>% 
+           RunPCA(npcs = 30)
+# Identify correct numbers of PCs
+# TotalPT.pca.test <- TestPCA(TotalPT)
+# TotalPT.pca.test[, 1:20]
+# 14 PCs with z > 1
+# rm(TotalPT.pca.test)
+
+TotalPT <- TotalPT %>% 
+           RunUMAP(reduction = \"pca\", dims = 1:14) %>%
+           FindNeighbors(reduction = \"pca\", dims = 1:14) %>%
+           FindClusters(resolution = .8)
+
+FeaturePlot(TotalPT, \"Lineage_Freq\", min.cutoff = 1, max.cutoff = 2) + theme(legend.position = \"none\")
+ggsave(\"./Figures/Drop27_TotalPT_Lineage_Freq_0.7_UMAP.pdf\")
+
+expanded.cells70 <- data.frame(x = rownames(TotalPT@meta.data)[which(TotalPT@meta.data$Lineage_Freq > 1)])
+expanded.cells70 <- expanded.cells70 %>% 
+                    tidyr::separate(x, c(\"Sample\", \"Barcode\"), sep = \"_\")
+expanded.cells70 <- cbind(expanded.cells70, 
+                          lineage_ID = paste(TotalPT@meta.data[which(TotalPT@meta.data$Lineage_Freq > 1), 'orig.ident'],
+                                             TotalPT@meta.data[which(TotalPT@meta.data$Lineage_Freq > 1), 'Lineage_ID'],
+                                             sep = \"_\"))
+saveRDS(expanded.cells70, \"./Data/expanded.cells70.rds\")
+
+```"

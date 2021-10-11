@@ -1,0 +1,80 @@
+"0","```r
+vaccinated <- subset(TotalPT, idents = c(\"PID4101V\", \"PID4128V\", \"PID4XXXV\"))         
+infected <- subset(TotalPT, idents = c(\"PID4127\", \"PID4130\", \"PID4132\", \"PID4134\"))         
+negative <- subset(TotalPT, idents = c(\"PID4101\"))
+
+# GenerateTriplePlot Function
+GenerateTriplePlot <- function(object,
+                               antigen = \"adt_CoV2-S1\",
+                               title = \"Vaccinated Donors\"){
+  d <- as.data.frame(FetchData(object = object, 
+                   vars = c(antigen, \"adt_IgM\", \"adt_IgG\", \"adt_IgA\", \"orig.ident\")))
+  ## Format colnames to match FeatureScatter syntax
+  colnames(d) <- c(gsub(\"-\", \".\", antigen), \"adt_IgM\", \"adt_IgG\", \"adt_IgA\", \"colors\")
+  p1 <- FeatureScatter(object, antigen, \"adt_IgM\",
+                      cols = colors.use[2:32], plot.cor = F) +
+       geom_density2d(data = d, color = \"black\", size = 1) +
+       theme_gray() + theme(legend.position = \"none\") + 
+       labs(x = antigen, 
+            y = \"Surface IgM (ADT)\")
+  p2 <- FeatureScatter(object, antigen, \"adt_IgG\",
+                      cols = colors.use[2:32], plot.cor = F) +
+       geom_density2d(data = d, color = \"black\", size = 1) +
+       theme_gray() + theme(legend.position = \"none\") + 
+       labs(x = antigen, 
+            y = \"Surface IgG (ADT)\")
+  p3 <- FeatureScatter(object, antigen, \"adt_IgA\",
+                      cols = colors.use[2:32], plot.cor = F) +
+       geom_density2d(data = d, color = \"black\", size = 1) +
+       theme_gray() + guides(color = guide_legend(ncol=1)) + 
+       labs(x = antigen, 
+            y = \"Surface IgA (ADT)\")
+  p <- plot_grid(p1, p2, p3, ncol = 3, rel_widths = c(1,1,1.43))  
+   t <- ggdraw() + 
+       draw_label(title, fontface = 'bold')
+  return(plot_grid(t, p, ncol = 1, rel_heights = c(0.05, 1)))
+}
+
+GenerateTriplePlot(vaccinated, \"adt_CoV2-RBD\")
+ggsave(\"./Figures/Vaccinated_RBD.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(vaccinated, \"adt_CoV2-S1\")
+ggsave(\"./Figures/Vaccinated_S1.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(vaccinated, \"adt_CoV2-S2\")
+ggsave(\"./Figures/Vaccinated_S2.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(vaccinated, \"adt_CoV2-N\")
+ggsave(\"./Figures/Vaccinated_N.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(vaccinated, \"adt_Orf3a\")
+ggsave(\"./Figures/Vaccinated_Orf3a.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(vaccinated, \"adt_Orf3b\")
+ggsave(\"./Figures/Vaccinated_Orf3b.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(vaccinated, \"adt_Env\")
+ggsave(\"./Figures/Vaccinated_Env.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(vaccinated, \"adt_Mem\")
+ggsave(\"./Figures/Vaccinated_Mem.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(vaccinated, \"adt_Orf7b\")
+ggsave(\"./Figures/Vaccinated_Orf7b.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(vaccinated, \"adt_Orf8\")
+ggsave(\"./Figures/Vaccinated_Orf8.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(vaccinated, \"adt_Orf9c\")
+ggsave(\"./Figures/Vaccinated_Orf9c.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(vaccinated, \"adt_NSP1\")
+ggsave(\"./Figures/Vaccinated_NSP1.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(vaccinated, \"adt_NSP10\")
+ggsave(\"./Figures/Vaccinated_NSP10.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(vaccinated, \"adt_NSP7\")
+ggsave(\"./Figures/Vaccinated_NSP7.pdf\", height = 5, width = 10)
+
+```"

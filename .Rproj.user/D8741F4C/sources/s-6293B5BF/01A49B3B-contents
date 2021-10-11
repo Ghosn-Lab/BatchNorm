@@ -1,0 +1,1391 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Workspace setup
+```{r}
+library(Matrix)
+library(Seurat)
+library(dplyr)
+library(plyr)
+library(ggcyto)
+library(RColorBrewer)
+library(cowplot)
+library(scRepertoire)
+library(circlize)
+library(scales)
+library(viridis)
+source('~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/VDJ_Tools.R')
+
+
+
+colors.use <- c(brewer.pal(8, 'Set1')[c(1:5,7:8)], brewer.pal(7, 'Dark2'),  'blue4', 'orangered', 'orangered4', c(brewer.pal(12, 'Paired'), brewer.pal(6, 'Accent'))[c(1:10, 12, 15:20)])
+emory.cols <- c("#00aeef","#41b6e6","#487f84","#348338","#006c5b","#5c8118","#c35413","#da291c","#c6007e","#6558b1","#6d2077","#000000")
+
+# Function to z-score each PC's percentage of the total variance captured
+TestPCA <- function(object = NULL, 
+                    genes.use = object@assays$RNA@var.features,
+                    mtx.use = object@assays$RNA@scale.data){
+  data.use <- mtx.use[genes.use, ]
+  pca.results <- svd(x = t(data.use))
+  sdev <- pca.results$d/sqrt(max(1, ncol(data.use) - 1))
+  PCVariance <- rbind(SD = sdev,
+                      Proportion = (sdev^2)/sum(sdev^2), 
+                      Cumulative = cumsum(sdev^2)/sum(sdev^2))
+  m <- mean(PCVariance['Proportion', ])
+  s <- sd(PCVariance['Proportion', ])
+  PCVariance <- rbind(PCVariance, 
+                      ZScore = (PCVariance['Proportion', ] - m)/s)
+  return(PCVariance)
+}
+# Function to select mitochondrial percent by X Std Dev above median
+MitoFilter <- function(obj){
+  max.mito <<- 5*sd(obj$percent.mito) + median(obj$percent.mito)
+  obj <- obj %>% subset(percent.mito < max.mito) %>% subset(nFeature_RNA > 100)
+  return(obj)
+  rm(max.mito)
+}
+
+GetLISI <- function(object, nSamples) {
+  coords <- object@reductions$umap@cell.embeddings
+  sample_cats <- data.frame("orig.ident" = object@meta.data$orig.ident)
+  res <- lisi::compute_lisi(coords, sample_cats, c('orig.ident'))
+  sample.lisi <- median(res$orig.ident)
+  adjusted.lisi <- 1 - ((sample.lisi - 1) / (nSamples - 1))
+  return(adjusted.lisi)
+}
+
+#### For FeaturePlot() ####
+# Function to pseudo customize FeaturePlots
+customize_Seurat_FeaturePlot <- function(p, alpha.use = 1, gradient.use = c("yellow", "red"), expression.threshold = 0, is.log1p.transformed = F) {
+  
+  #### Main function ####
+  main_function <- function(p = p, alpha.use = alpha.use, gradient.use = gradient.use, expression.threshold = expression.threshold, is.log1p.transformed = is.log1p.transformed) {
+    
+    # Order data by gene expresion level
+    p$data <- p$data[order(p$data$gene),]
+    
+    # Define lower limit of gene expression level
+    if (isTRUE(is.log1p.transformed)) {
+      expression.threshold <- expression.threshold
+    } else {
+      expression.threshold <- log1p(expression.threshold)
+    }
+    
+    # Compute maximum value in gene expression
+    max.exp <- max(p$data$gene)
+    
+    # Fill points using the gene expression levels
+    p$layers[[1]]$mapping$fill <- p$layers[[1]]$mapping$colour
+    
+    # Define transparency of points
+    p$layers[[1]]$mapping$alpha <- alpha.use
+    
+    # Change fill and colour gradient values
+    p <- p + scale_colour_gradientn(colours = gradient.use, guide = F, limits = c(expression.threshold, max.exp), na.value = "grey") +
+      scale_fill_gradientn(colours = gradient.use, name = expression(atop(Expression, (log))), limits = c(expression.threshold, max.exp), na.value = "grey") +
+      scale_alpha_continuous(range = alpha.use, guide = F)
+  }
+  
+  #### Execution of main function ####
+  # Apply main function on all features
+  p <- lapply(X = p, alpha.use = alpha.use, gradient.use = gradient.use, 
+              expression.threshold = expression.threshold, is.log1p.transformed = is.log1p.transformed,
+              FUN = main_function)
+  
+  # Arrange all plots using cowplot
+  # Adapted from Seurat
+  # https://github.com/satijalab/seurat/blob/master/R/plotting.R#L1100
+  # ncol argument adapted from Josh O'Brien
+  # https://stackoverflow.com/questions/10706753/how-do-i-arrange-a-variable-list-of-plots-using-grid-arrange
+  cowplot::plot_grid(plotlist = p, ncol = ceiling(sqrt(length(p))))
+}
+
+# Correcting VDJ matrix barcodes to Seurat format
+rearrange.BC <- function(x){
+  toupper(trimws(unlist(lapply(strsplit(x, "-"), '[[', 1))))
+}
+
+addVDJ <- function(obj = NULL, SampleID = NULL, lineage_df = NULL, cellrangervdj = NULL){
+  # Read in single-sample VDJ matrix with lineages & filter to IGH-only
+  VDJt <- as.data.frame(lineage_df)
+  crVDJ <- read.csv(cellrangervdj)
+  crVDJ.umi <- tapply(crVDJ$umis, crVDJ$barcode, FUN = sum)
+  rm(crVDJ)
+  
+  # Correcting VDJ matrix barcodes to Seurat format
+  VDJt$indexed_barcode <- rearrange.BC(VDJt$indexed_barcode)
+  VDJt$indexed_barcode <- paste(SampleID, VDJt$indexed_barcode, sep = c("_"))
+  cells <- intersect(VDJt$indexed_barcode, colnames(obj))
+  
+  # Correcting CellRanger VDJ names
+  names(crVDJ.umi) <- rearrange.BC(names(crVDJ.umi))
+  names(crVDJ.umi) <- paste(SampleID, names(crVDJ.umi), sep = c("_"))
+  crVDJ.umi <- crVDJ.umi[cells]
+  
+  VDJ <- VDJt[which(VDJt$chain_type == "igh"), ]
+  rownames(VDJ) <- VDJ$indexed_barcode
+  VDJ.l.umi <- VDJt[which(VDJt$chain_type == "igl"), c("indexed_barcode", "umis")]
+  rownames(VDJ.l.umi) <- VDJ.l.umi$indexed_barcode
+  rm(VDJt)
+  
+  # Establishing VDJ UMI count data (for plasma cell identification)
+  obj@meta.data$nCount_VDJ <- 0
+  UMI.mtx <- cbind(VDJ[cells, "umis"], VDJ.l.umi[cells, "umis"])
+  row.names(UMI.mtx) <- cells
+  UMI.mtx[is.na(UMI.mtx)] <- 0 
+  obj@meta.data[cells, "nCount_VDJ"] <- crVDJ.umi[cells]
+  obj@meta.data[is.na(obj@meta.data$nCount_VDJ), "nCount_VDJ"] <- 0
+  #VlnPlot(obj, "nCount_VDJ")
+  rm(list = c('UMI.mtx', 'VDJ.l.umi'))
+  # Transferring clonal lineage ID (from above, 85% CDR3 aa match)
+  obj@meta.data$Lineage_ID <- NA
+  obj@meta.data[cells, "Lineage_ID"] <- VDJ[cells, 'lineage_id']
+  # Counting lineage frequency (finding shared lineage IDs)
+  lineage_freq <- plyr::count(obj@meta.data$Lineage_ID)
+  ## re-order frequency to match Seurat cell barcodes & add as metadata
+  lineage_freq <- lineage_freq[match(obj@meta.data$Lineage_ID, lineage_freq$x), "freq"]
+  obj@meta.data$Lineage_Freq <- lineage_freq
+  rm(lineage_freq)
+  ## replace "NA lineage" cells with 0-count frequency (otherwise "NA" is the most frequent lineage)
+  obj@meta.data[which(is.na(obj@meta.data$Lineage_ID)), "Lineage_Freq"] <- 0
+  
+  # Add IGH V-gene annotation
+  obj@meta.data$IGH_V <- NA
+  obj@meta.data[cells, "IGH_V"] <- VDJ[cells, "v_gene"]
+  # Add IGH J-gene annotation
+  obj@meta.data$IGH_J <- NA
+  obj@meta.data[cells, "IGH_J"] <- VDJ[cells, "j_gene"]
+  # Add IGH VJ-gene annotation
+  obj@meta.data$IGH_VJ <- NA
+  obj@meta.data[cells, "IGH_VJ"] <- paste(VDJ[cells, "j_gene"], VDJ[cells, "v_gene"], sep = "_")
+  
+  # Add IGH V-gene annotation
+  obj@meta.data$CDR3_aa <- NA
+  obj@meta.data[cells, "CDR3_aa"] <- VDJ[cells, "aa_gapped_cdr3"]
+  
+  # Get V-gene frequency
+  V_freq <- plyr::count(obj@meta.data$IGH_V)
+  V_freq$freq <- (V_freq$freq/nrow(obj[[]]))*100
+  ## re-order frequency to match Seurat cell barcodes & add as metadata
+  V_freq <- V_freq[match(obj@meta.data$IGH_V, V_freq$x), "freq"]
+  obj@meta.data$IGH_V_freq <- V_freq
+  rm(V_freq)
+  ## replace "NA V-gene" cells with 0-count frequency (otherwise "NA" is the most frequent V-gene)
+  obj@meta.data[which(is.na(obj@meta.data$IGH_V)), "IGH_V_freq"] <- 0
+  
+  # Get VJ-gene frequency
+  VJ_freq <- plyr::count(obj@meta.data$IGH_VJ)
+  VJ_freq$freq <- (VJ_freq$freq/nrow(obj[[]]))*100
+  ## re-order frequency to match Seurat cell barcodes & add as metadata
+  VJ_freq <- VJ_freq[match(obj@meta.data$IGH_VJ, VJ_freq$x), "freq"]
+  obj@meta.data$IGH_VJ_freq <- VJ_freq
+  rm(VJ_freq)
+  ## replace "NA V-gene" cells with 0-count frequency (otherwise "NA" is the most frequent V-gene)
+  obj@meta.data[which(is.na(obj@meta.data$IGH_J)), "IGH_VJ_freq"] <- 0
+  
+  # Add isotype
+  obj@meta.data$Isotype <- NA
+  obj@meta.data[cells, "Isotype"] <- VDJ[cells, "isotype"]
+  return(obj)
+}
+
+
+```
+# Establish Objects
+# Merge Objects & remove contaminant cells
+```{r}
+# Set data directory
+dd <- "~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/UCSF/"
+
+##############
+## PID4101 ###
+############## PID4101, Visit 1, COVID Negative Control
+
+mtx.list <- Read10X(data.dir = paste0(dd, 'PID4101/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+PID4101 <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = "PID4101")
+PID4101 <- RenameCells(PID4101, add.cell.id = "PID4101")
+PID4101[["percent.mito"]] <- PercentageFeatureSet(PID4101, pattern = "^MT-")
+ldf_PID4101 <- assign_lineages(data = paste0(dd, "PID4101/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4101.csv"), 
+                           pct_homology = 0.85, return_df = T)
+dsb.mtx <- read.csv(paste0(dd, 'PID4101/adt_dsb.csv'), row.names = 1, header = T)
+# Sub DSB "XXX.1" cell IDs for Seurat "XXX-1" cell IDs
+colnames(dsb.mtx) <- gsub(pattern = ".1", replacement = "-1", x = colnames(dsb.mtx))
+PID4101[['ADT']] <- CreateAssayObject(counts = dsb.mtx)
+rm(list = c('mtx.list', 'dsb.mtx'))
+
+PID4101 <- PID4101 %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = "LogNormalize",
+                         assay = "RNA",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = "PID4101", lineage_df = ldf_PID4101, 
+                  cellrangervdj = paste0(dd, "PID4101/VDJ/filtered_contig_annotations.csv"))
+##############
+## PID4101V ##
+############## PID4101V, Visit 2, COVID Negative Control, Vaccinated
+
+mtx.list <- Read10X(data.dir = paste0(dd, 'PID4101V/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+PID4101V <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = "PID4101V")
+PID4101V <- RenameCells(PID4101V, add.cell.id = "PID4101V")
+PID4101V[["percent.mito"]] <- PercentageFeatureSet(PID4101V, pattern = "^MT-")
+ldf_PID4101V <- assign_lineages(data = paste0(dd, "PID4101V/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4101V.csv"), 
+                           pct_homology = 0.85, return_df = T)
+dsb.mtx <- read.csv(paste0(dd, 'PID4101V/adt_dsb.csv'), row.names = 1, header = T)
+# Sub DSB "XXX.1" cell IDs for Seurat "XXX-1" cell IDs
+colnames(dsb.mtx) <- gsub(pattern = ".1", replacement = "-1", x = colnames(dsb.mtx))
+PID4101V[['ADT']] <- CreateAssayObject(counts = dsb.mtx)
+rm(list = c('mtx.list', 'dsb.mtx'))
+
+
+PID4101V <- PID4101V %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = "LogNormalize",
+                         assay = "RNA",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = "PID4101V", lineage_df = ldf_PID4101V, 
+                  cellrangervdj = paste0(dd, "PID4101V/VDJ/filtered_contig_annotations.csv"))
+
+#############
+## PID4127 ##
+############# PID4127, COVID+, 2 days after symptoms
+
+mtx.list <- Read10X(data.dir = paste0(dd, 'PID4127/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+PID4127 <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = "PID4127")
+PID4127 <- RenameCells(PID4127, add.cell.id = "PID4127")
+PID4127[["percent.mito"]] <- PercentageFeatureSet(PID4127, pattern = "^MT-")
+ldf_PID4127 <- assign_lineages(data = paste0(dd, "PID4127/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4127.csv"), 
+                           pct_homology = 0.85, return_df = T)
+dsb.mtx <- read.csv(paste0(dd, 'PID4127/adt_dsb.csv'), row.names = 1, header = T)
+# Sub DSB "XXX.1" cell IDs for Seurat "XXX-1" cell IDs
+colnames(dsb.mtx) <- gsub(pattern = ".1", replacement = "-1", x = colnames(dsb.mtx))
+PID4127[['ADT']] <- CreateAssayObject(counts = dsb.mtx)
+rm(list = c('mtx.list', 'dsb.mtx'))
+
+PID4127 <- PID4127 %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = "LogNormalize",
+                         assay = "RNA",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = "PID4127", lineage_df = ldf_PID4127, 
+                  cellrangervdj = paste0(dd, "PID4127/VDJ/filtered_contig_annotations.csv"))
+
+##############
+## PID4128V ##
+############## PID4128V, COVID-recovered, Vaccinated
+mtx.list <- Read10X(data.dir = paste0(dd, 'PID4128V/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+PID4128V <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = "PID4128V")
+PID4128V <- RenameCells(PID4128V, add.cell.id = "PID4128V")
+PID4128V[["percent.mito"]] <- PercentageFeatureSet(PID4128V, pattern = "^MT-")
+ldf_PID4128V <- assign_lineages(data = paste0(dd, "PID4128V/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4128V.csv"), 
+                           pct_homology = 0.85, return_df = T)
+dsb.mtx <- read.csv(paste0(dd, 'PID4128V/adt_dsb.csv'), row.names = 1, header = T)
+# Sub DSB "XXX.1" cell IDs for Seurat "XXX-1" cell IDs
+colnames(dsb.mtx) <- gsub(pattern = ".1", replacement = "-1", x = colnames(dsb.mtx))
+PID4128V[['ADT']] <- CreateAssayObject(counts = dsb.mtx)
+rm(list = c('mtx.list', 'dsb.mtx'))
+
+PID4128V <- PID4128V %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = "LogNormalize",
+                         assay = "RNA",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = "PID4128V", lineage_df = ldf_PID4128V, 
+                  cellrangervdj = paste0(dd, "PID4128V/VDJ/filtered_contig_annotations.csv"))
+
+
+#############
+## PID4130 ##
+############# PID4130, COVID+, 80 days after symptoms
+mtx.list <- Read10X(data.dir = paste0(dd, 'PID4130/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+PID4130 <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = "PID4130")
+PID4130 <- RenameCells(PID4130, add.cell.id = "PID4130")
+PID4130[["percent.mito"]] <- PercentageFeatureSet(PID4130, pattern = "^MT-")
+ldf_PID4130 <- assign_lineages(data = paste0(dd, "PID4130/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4130.csv"), 
+                           pct_homology = 0.85, return_df = T)
+dsb.mtx <- read.csv(paste0(dd, 'PID4130/adt_dsb.csv'), row.names = 1, header = T)
+# Sub DSB "XXX.1" cell IDs for Seurat "XXX-1" cell IDs
+colnames(dsb.mtx) <- gsub(pattern = ".1", replacement = "-1", x = colnames(dsb.mtx))
+PID4130[['ADT']] <- CreateAssayObject(counts = dsb.mtx)
+rm(list = c('mtx.list', 'dsb.mtx'))
+
+PID4130 <- PID4130 %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = "LogNormalize",
+                         assay = "RNA",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = "PID4130", lineage_df = ldf_PID4130, 
+                  cellrangervdj = paste0(dd, "PID4130/VDJ/filtered_contig_annotations.csv"))
+
+#############
+## PID4132 ##
+############# PID4132, COVID+, 30 days after symptoms
+mtx.list <- Read10X(data.dir = paste0(dd, 'PID4132/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+PID4132 <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = "PID4132")
+PID4132 <- RenameCells(PID4132, add.cell.id = "PID4132")
+PID4132[["percent.mito"]] <- PercentageFeatureSet(PID4132, pattern = "^MT-")
+ldf_PID4132 <- assign_lineages(data = paste0(dd, "PID4132/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4132.csv"), 
+                           pct_homology = 0.85, return_df = T)
+dsb.mtx <- read.csv(paste0(dd, 'PID4132/adt_dsb.csv'), row.names = 1, header = T)
+# Sub DSB "XXX.1" cell IDs for Seurat "XXX-1" cell IDs
+colnames(dsb.mtx) <- gsub(pattern = ".1", replacement = "-1", x = colnames(dsb.mtx))
+PID4132[['ADT']] <- CreateAssayObject(counts = dsb.mtx)
+rm(list = c('mtx.list', 'dsb.mtx'))
+
+PID4132 <- PID4132 %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = "LogNormalize",
+                         assay = "RNA",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = "PID4132", lineage_df = ldf_PID4132, 
+                  cellrangervdj = paste0(dd, "PID4132/VDJ/filtered_contig_annotations.csv"))
+
+#############
+## PID4134 ##
+############# PID4134, COVID+, 16 days after symptoms
+mtx.list <- Read10X(data.dir = paste0(dd, 'PID4134/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+PID4134 <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = "PID4134")
+PID4134 <- RenameCells(PID4134, add.cell.id = "PID4134")
+PID4134[["percent.mito"]] <- PercentageFeatureSet(PID4134, pattern = "^MT-")
+ldf_PID4134 <- assign_lineages(data = paste0(dd, "PID4134/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4134.csv"), 
+                           pct_homology = 0.85, return_df = T)
+dsb.mtx <- read.csv(paste0(dd, 'PID4134/adt_dsb.csv'), row.names = 1, header = T)
+# Sub DSB "XXX.1" cell IDs for Seurat "XXX-1" cell IDs
+colnames(dsb.mtx) <- gsub(pattern = ".1", replacement = "-1", x = colnames(dsb.mtx))
+PID4134[['ADT']] <- CreateAssayObject(counts = dsb.mtx)
+rm(list = c('mtx.list', 'dsb.mtx'))
+
+PID4134 <- PID4134 %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = "LogNormalize",
+                         assay = "RNA",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = "PID4134", lineage_df = ldf_PID4134, 
+                  cellrangervdj = paste0(dd, "PID4134/VDJ/filtered_contig_annotations.csv"))
+
+##############
+## PID4XXXV ##
+############## PID4XXXV, COVID Negative Control, Vaccinated
+mtx.list <- Read10X(data.dir = paste0(dd, 'PID4XXXV/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+PID4XXXV <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = "PID4XXXV")
+PID4XXXV <- RenameCells(PID4XXXV, add.cell.id = "PID4XXXV")
+PID4XXXV[["percent.mito"]] <- PercentageFeatureSet(PID4XXXV, pattern = "^MT-")
+ldf_PID4XXXV <- assign_lineages(data = paste0(dd, "PID4XXXV/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4XXXV.csv"), 
+                           pct_homology = 0.85, return_df = T)
+dsb.mtx <- read.csv(paste0(dd, 'PID4XXXV/adt_dsb.csv'), row.names = 1, header = T)
+# Sub DSB "XXX.1" cell IDs for Seurat "XXX-1" cell IDs
+colnames(dsb.mtx) <- gsub(pattern = ".1", replacement = "-1", x = colnames(dsb.mtx))
+PID4XXXV[['ADT']] <- CreateAssayObject(counts = dsb.mtx)
+rm(list = c('mtx.list', 'dsb.mtx'))
+
+PID4XXXV <- PID4XXXV %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = "LogNormalize",
+                         assay = "RNA",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = "PID4XXXV", lineage_df = ldf_PID4XXXV, 
+                  cellrangervdj = paste0(dd, "PID4XXXV/VDJ/filtered_contig_annotations.csv"))
+
+rm('mtx.list')
+
+################################################################################
+
+
+#########################
+## MERGE Pt REPLICATES ##
+#########################
+samples <- c('PID4101', 'PID4101V', 'PID4127', 'PID4128V',
+             'PID4130', 'PID4132', 'PID4134', 'PID4XXXV')
+TotalPT <- merge(PID4101, y = c(PID4101V, PID4127, PID4128V, PID4130, PID4132, 
+                                PID4134, PID4XXXV), merge.data = T)
+rm(list = )
+
+# Add ribosomal percentage (regex: "starts with 'RP' followed by either 'S' or 'L'")
+TotalPT[["percent.ribo"]] <- PercentageFeatureSet(TotalPT, pattern = "^RP(S|L)")
+
+############################
+## Add Metadata Variables ##
+############################
+
+# Sex
+TotalPT$sex <- plyr::mapvalues(
+    x = TotalPT$orig.ident, 
+    from = samples, 
+    to = c('Female', 'Female', 'Male', 'Female', 
+           'Female', 'Female', 'Female', 'Female')
+)
+# Age
+TotalPT$age <- plyr::mapvalues(
+    x = TotalPT$orig.ident, 
+    from = samples, 
+    to = c(NA, NA, NA, 36, 
+           54, 28, 35, 34)
+)
+# Vaccination / Infection Status
+TotalPT$Status <- plyr::mapvalues(
+    x = TotalPT$orig.ident, 
+    from = samples, 
+    to = c('Negative CTL', 'Vaccinated', 'Infected', 'Vaccinated', 
+           'Infected', 'Infected', 'Infected', 'Vaccinated')
+)
+# Date of 10X Encapsulation
+TotalPT$date.10x <- plyr::mapvalues(
+    x = TotalPT$orig.ident, 
+    from = samples, 
+    to = c('2020.11.23', '2021.03.23', '2020.09.30', '2021.03.23', 
+           '2020.12.16', '2020.11.23', '2020.11.18', '2021.03.23')
+)
+# Days from PCR+ to 10X
+TotalPT$days.after.pcr <- plyr::mapvalues(
+    x = TotalPT$orig.ident, 
+    from = samples, 
+    to = c(NA, NA, 2, 180, 
+           80, 30, 16, NA)
+)
+# 10X Estimated Cells
+TotalPT$nCells.10X <- plyr::mapvalues(
+    x = TotalPT$orig.ident, 
+    from = samples, 
+    to = c(6619, 4894, 14061, 4712,
+           6637, 4850, 7921, 7389)
+)
+# Days from PCR+ to 10X
+TotalPT$MeanReads.10X <- plyr::mapvalues(
+    x = TotalPT$orig.ident, 
+    from = samples, 
+    to = c(68935, 136087, 26839, 141116,
+    68850, 102153, 47898, 89148))
+# Days from PCR+ to 10X
+TotalPT$MeanGenes.10X <- plyr::mapvalues(
+    x = TotalPT$orig.ident, 
+    from = samples, 
+    to = c(1515, 1630, 769, 1774,
+           1017, 1956, 1559, 1433))
+
+saveRDS(TotalPT, "./Workflow/Data/TotalPT_VDJ.rds")
+```
+# Remove contaminants and doublet cells
+```{r}
+# Restrict only to cells with VDJ (B cells)
+TotalPT <- subset(TotalPT, subset = `nCount_VDJ` > 0)
+
+# Define contaminant (non B cell) markers
+dumpchannel <- c('CD4', 'CD3E', 'CD3G', 'CD3D', 'CD8A', 'CD8B', 'CD14', 'NKG7', "FCGR3A")
+TotalPT@meta.data$dumpchannel <- colSums(TotalPT@assays$RNA@data[dumpchannel, ])
+VlnPlot(TotalPT, "dumpchannel") + ggtitle("\"Dump Channel\" Expression") + theme(legend.position = 'none')
+ggsave("./Workflow/Figures/TotalPT_DumpChannel_Vln.pdf")
+
+
+
+# Percentage of cells with VDJ (B cells) AND contaminant cell markers should be the doublet percentage
+## Expecting doublet percentage 5-8%
+length(which(TotalPT@meta.data$dumpchannel > 0)) / nrow(TotalPT@meta.data)
+# 0.05374325 (~ 5.4% doublets of B cells with non-B cells)
+
+# Remove any cells expressing "dump channel" markers
+TotalPT <- subset(TotalPT, subset = `dumpchannel` == 0)
+# Save filtered object for later analyses
+saveRDS(TotalPT, "./Workflow/Data/TotalPT_Filtered.rds")
+
+
+# Select Plasma cells
+TotalPT$IGHSum <- colSums(TotalPT@assays$RNA@counts[grep("^IGH", rownames(TotalPT@assays$RNA@counts)), ])
+
+VlnPlot(TotalPT, "nCount_VDJ") + scale_y_log10() + theme(legend.position = "none") + geom_hline(yintercept = 800)
+ggsave("./Workflow/Figures/TotalPT_nCountVDJ_Vln.pdf")
+
+FeatureScatter(TotalPT, "nCount_VDJ", "IGHSum",
+                    cols = colors.use, plot.cor = T) + scale_x_log10() + scale_y_log10()
+ggsave("./Workflow/Figures/TotalPT_nCountVDJ_IGHSum_Correlation.pdf")
+
+TotalPT[['is.plasma']] <- rep(FALSE, nrow(TotalPT@meta.data))
+TotalPT@meta.data[WhichCells(TotalPT, expression = `nCount_VDJ` >= 800), "is.plasma"] <- TRUE
+
+Idents(TotalPT) <- TotalPT[['orig.ident']]
+plasmabyid <- function(id){
+  s1 <- subset(TotalPT, idents = id)
+  plasma.percent <- sum(s1$is.plasma)/nrow(s1[[]])*100
+  return(plasma.percent)
+}
+ctlplasmadf <- mapply(c('PID4101', 'PID4101V', 'PID4XXXV'), FUN = plasmabyid)
+plasmadf <- mapply(c("PID4127", "PID4134", "PID4132", "PID4130", "PID4128V"),
+                      FUN = plasmabyid)
+plasmadf <- data.frame(percent.plasma = plasmadf)
+
+plasmadf$days <- plyr::mapvalues(x = row.names(plasmadf),
+                                 from = c("PID4127", "PID4134", "PID4132", "PID4130", "PID4128V"),
+                                 to = c(2, 16, 30, 80, 180))
+  
+
+ggplot(plasmadf, aes(x = as.numeric(days), y = percent.plasma, color = "color")) + 
+  geom_point() + geom_line() +
+  ylab("Percentage Plasma Cells") +
+  xlab("Days After First PCR+") + 
+  ggtitle("Percentage Plasma Cells of Infected/Convalescent Patients") +
+  scale_color_manual(values = colors.use) +
+  theme_grey() + theme(legend.position = "none")  +
+  annotate("rect", xmin = -20, xmax = 200, ymin = min(ctlplasmadf), ymax = max(ctlplasmadf),
+           alpha = .1,fill = "blue") + 
+  ylim(0, 100) + coord_cartesian(ylim = c(0,100), xlim = c(0, 180)) +
+  annotate("text", x = 20, y = mean(ctlplasmadf), label = "Control/Vaccinated Level", vjust = 0.1)
+
+ggsave("./Workflow/Figures/Percent_Plasma_Cells_LinePlot.pdf")
+
+
+
+PT_PCells <- subset(TotalPT, subset = nCount_VDJ > 800)
+# 4404 Plasma cells / 24192 total cells
+PT_BCells <- subset(TotalPT, subset = nCount_VDJ > 800, invert = T)
+# 19788 B cells
+saveRDS(PT_PCells, "./Workflow/Data/PT_PCells.rds")
+saveRDS(PT_BCells, "./Workflow/Data/PT_BCells.rds")
+```
+
+# Add PBMCs (filtered for B cells only)
+```{r}
+# PBMC samples 1-3 (5', with TotalSeqC ADT)
+# Process PBMC VDJ Matrices #
+### PBMC001 ###
+summary_dir <- "~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/PBMC/5GEX_PBMC1_36yoF_F1/Batch2/"
+process_cellranger_outputs(cellranger_csv = paste0(summary_dir, "/Raw/all_contig_annotations.csv"),
+                           cellranger_fasta = paste0(summary_dir, "/Raw/all_contig.fasta"),
+                           index = "PBMC001",
+                           do_filter = TRUE,
+                           filter_read_count = 50,
+                           filter_umi_count = 2, 
+                           dir = "~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/PBMC/5GEX_PBMC1_36yoF_F1/Batch2/VDJ_Processed/")
+# Move fasta to IMGT for alignment
+
+process_vdj_02(sample_index = "PBMC001", 
+               IMGT_dir = "~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/PBMC/5GEX_PBMC1_36yoF_F1/Batch2/VDJ_Processed/IMGT_outs/")
+
+
+
+
+### PBMC002 ###
+
+summary_dir <- "~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/PBMC/5GEX_PBMC2_27yoF_G1/Batch2/"
+process_cellranger_outputs(cellranger_csv = paste0(summary_dir, "/Raw/all_contig_annotations.csv"),
+                           cellranger_fasta = paste0(summary_dir, "/Raw/all_contig.fasta"),
+                           index = "PBMC002",
+                           do_filter = TRUE,
+                           filter_read_count = 50,
+                           filter_umi_count = 2, 
+                           dir = "~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/PBMC/5GEX_PBMC2_27yoF_G1/Batch2/VDJ_Processed/")
+# Move fasta to IMGT for alignment
+
+process_vdj_02(sample_index = "PBMC002", 
+               IMGT_dir = "~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/PBMC/5GEX_PBMC2_27yoF_G1/Batch2/VDJ_Processed/IMGT_outs/")
+
+### PBMC003 ###
+summary_dir <- "~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/PBMC/5GEX_PBMC3_46yoM_H1/Batch2/"
+process_cellranger_outputs(cellranger_csv = paste0(summary_dir, "/Raw/all_contig_annotations.csv"),
+                           cellranger_fasta = paste0(summary_dir, "/Raw/all_contig.fasta"),
+                           index = "PBMC003",
+                           do_filter = TRUE,
+                           filter_read_count = 50,
+                           filter_umi_count = 2, 
+                           dir = "~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/PBMC/5GEX_PBMC3_46yoM_H1/Batch2/VDJ_Processed/")
+# Move fasta to IMGT for alignment
+
+process_vdj_02(sample_index = "PBMC003", 
+               IMGT_dir = "~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/PBMC/5GEX_PBMC3_46yoM_H1/Batch2/VDJ_Processed/IMGT_outs/")
+
+
+
+######### scRNA-Seq plus ADT (already dsb-corrected in other notebook) #########
+
+##############
+## PBMC001 ###
+############## PBMC001, COVID Negative Control
+# 5GEX_PBMC1_36yoF_F1/
+dd <- "~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/PBMC/"
+
+mtx.list <- Read10X(data.dir = paste0(dd, '5GEX_PBMC1_36yoF_F1/Batch2/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+PBMC001 <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = "PBMC001")
+PBMC001[["percent.mito"]] <- PercentageFeatureSet(PBMC001, pattern = "^MT-")
+dsb.mtx <- read.csv(paste0(dd, '5GEX_PBMC1_36yoF_F1/Batch2/adt_dsb.csv'), row.names = 1, header = T)
+colnames(dsb.mtx) <- gsub(pattern = ".1", replacement = "", x = colnames(dsb.mtx))
+PBMC001[['ADT']] <- CreateAssayObject(counts = dsb.mtx)
+PBMC001 <- RenameCells(PBMC001, add.cell.id = "PBMC001")
+ldf_PBMC001 <- assign_lineages(data = "~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/PBMC/5GEX_PBMC1_36yoF_F1/Batch2/VDJ_Processed/IMGT_outs/SS_outs/SS_processed_long_table_PBMC001.csv", pct_homology = 0.85, return_df = T)
+
+PBMC001 <- PBMC001 %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = "LogNormalize",
+                         assay = "RNA",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = "PBMC001", lineage_df = ldf_PBMC001, 
+                  cellrangervdj = paste0(dd, "5GEX_PBMC1_36yoF_F1/Batch2/Filtered/filtered_contig_annotations.csv"))
+# rm(ldf_PBMC001)
+
+##############
+## PBMC002 ###
+############## PBMC002, COVID Negative Control
+# 5GEX_PBMC2_27yoF_G1/
+
+mtx.list <- Read10X(data.dir = paste0(dd, '5GEX_PBMC2_27yoF_G1/Batch2/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+PBMC002 <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = "PBMC002")
+PBMC002[["percent.mito"]] <- PercentageFeatureSet(PBMC002, pattern = "^MT-")
+dsb.mtx <- read.csv(paste0(dd, '5GEX_PBMC2_27yoF_G1/Batch2/adt_dsb.csv'), row.names = 1, header = T)
+colnames(dsb.mtx) <- gsub(pattern = ".1", replacement = "", x = colnames(dsb.mtx))
+PBMC002[['ADT']] <- CreateAssayObject(counts = dsb.mtx)
+PBMC002 <- RenameCells(PBMC002, add.cell.id = "PBMC002")
+ldf_PBMC002 <- assign_lineages(data = "~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/PBMC/5GEX_PBMC2_27yoF_G1/Batch2/VDJ_Processed/IMGT_outs/SS_outs/SS_processed_long_table_PBMC002.csv", pct_homology = 0.85, return_df = T)
+
+PBMC002 <- PBMC002 %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = "LogNormalize",
+                         assay = "RNA",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = "PBMC002", lineage_df = ldf_PBMC002, 
+                  cellrangervdj = paste0(dd, "5GEX_PBMC2_27yoF_G1/Batch2/Filtered/filtered_contig_annotations.csv"))
+# rm(ldf_PBMC002)
+
+##############
+## PBMC003 ###
+############## PBMC003, COVID Negative Control
+# 5GEX_PBMC3_46yoM_H1/
+
+mtx.list <- Read10X(data.dir = paste0(dd, '5GEX_PBMC3_46yoM_H1/Batch2/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+PBMC003 <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = "PBMC003")
+PBMC003[["percent.mito"]] <- PercentageFeatureSet(PBMC003, pattern = "^MT-")
+dsb.mtx <- read.csv(paste0(dd, '5GEX_PBMC3_46yoM_H1/Batch2/adt_dsb.csv'), row.names = 1, header = T)
+colnames(dsb.mtx) <- gsub(pattern = ".1", replacement = "", x = colnames(dsb.mtx))
+PBMC003[['ADT']] <- CreateAssayObject(counts = dsb.mtx)
+PBMC003 <- RenameCells(PBMC003, add.cell.id = "PBMC003")
+ldf_PBMC003 <- assign_lineages(data = "~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/PBMC/5GEX_PBMC3_46yoM_H1/Batch2/VDJ_Processed/IMGT_outs/SS_outs/SS_processed_long_table_PBMC003.csv", pct_homology = 0.85, return_df = T)
+
+PBMC003 <- PBMC003 %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = "LogNormalize",
+                         assay = "RNA",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = "PBMC003", lineage_df = ldf_PBMC003, 
+                  cellrangervdj = paste0(dd, "5GEX_PBMC3_46yoM_H1/Batch2/Filtered/filtered_contig_annotations.csv"))
+# rm(ldf_PBMC003)
+
+
+#########################
+## MERGE Pt REPLICATES ##
+#########################
+samples <- c('PBMC001', 'PBMC002', 'PBMC003')
+TotalPBMC <- merge(PBMC001, y = c(PBMC002, PBMC003), merge.data = T)
+rm(list = samples)
+
+# Add ribosomal percentage (regex: "starts with 'RP' followed by either 'S' or 'L'")
+TotalPBMC[["percent.ribo"]] <- PercentageFeatureSet(TotalPBMC, pattern = "^RP(S|L)")
+
+############################
+## Add Metadata Variables ##
+############################
+
+# Sex
+TotalPBMC$sex <- plyr::mapvalues(
+    x = TotalPBMC$orig.ident, 
+    from = samples, 
+    to = c('Female', 'Female', 'Male')
+)
+# Age
+TotalPBMC$age <- plyr::mapvalues(
+    x = TotalPBMC$orig.ident, 
+    from = samples, 
+    to = c(36, 27, 46)
+)
+# Vaccination / Infection Status
+TotalPBMC$Status <- plyr::mapvalues(
+    x = TotalPBMC$orig.ident, 
+    from = samples, 
+    to = c('Negative CTL', 'Negative CTL', 'Negative CTL')
+)
+# Date of 10X Encapsulation
+TotalPBMC$date.10x <- plyr::mapvalues(
+    x = TotalPBMC$orig.ident, 
+    from = samples, 
+    to = c('2019.XX.XX', '2019.XX.XX', '2019.XX.XX')
+)
+# Days from PCR+ to 10X
+TotalPBMC$days.after.pcr <- plyr::mapvalues(
+    x = TotalPBMC$orig.ident, 
+    from = samples, 
+    to = c(NA, NA, NA)
+)
+# 10X Estimated Cells
+TotalPBMC$nCells.10X <- plyr::mapvalues(
+    x = TotalPBMC$orig.ident, 
+    from = samples, 
+    to = c(4034, 2302, 6423)
+)
+# 10X Mean Reads per Cell
+TotalPBMC$MeanReads.10X <- plyr::mapvalues(
+    x = TotalPBMC$orig.ident, 
+    from = samples, 
+    to = c(138274, 150868, 45805))
+
+# 10X Median Genes per Cell
+TotalPBMC$MeanGenes.10X <- plyr::mapvalues(
+    x = TotalPBMC$orig.ident, 
+    from = samples, 
+    to = c(1422, 1411, 1363))
+
+
+TotalPBMC <- subset(TotalPBMC, subset = nCount_VDJ > 0)
+
+TotalPBMC$IGHSum <- colSums(TotalPBMC@assays$RNA@counts[grep("^IGH", rownames(TotalPBMC@assays$RNA@counts)), ])
+
+
+###########################
+## Biaxial antigen plots ##
+###########################
+
+d <- as.data.frame(FetchData(object = TotalPBMC, 
+                   vars = c("adt_CD20-TotalSeqC", "adt_CD19-TotalSeqC")))
+## Format colnames to match FeatureScatter syntax
+colnames(d) <- c("adt_CD20.TotalSeqC", "adt_CD19.TotalSeqC")
+p <- FeatureScatter(TotalPBMC, "adt_CD20-TotalSeqC", "adt_CD19-TotalSeqC",
+                    cols = colors.use, plot.cor = F) +
+    # geom_density2d(data = d, color = "black", size = 1) +
+     theme_gray() +
+     labs(x = "CD20 (ADT)", 
+          y = "CD19 (ADT)")
+p
+ggsave("./Workflow/Figures/PBMCS_CD19CD20.pdf")
+
+
+d <- as.data.frame(FetchData(object = TotalPBMC, 
+                   vars = c("adt_CD56-TotalSeqC", "adt_CD3-TotalSeqC")))
+## Format colnames to match FeatureScatter syntax
+colnames(d) <- c("adt_CD56.TotalSeqC", "adt_CD3.TotalSeqC")
+p <- FeatureScatter(TotalPBMC, "adt_CD56-TotalSeqC", "adt_CD3-TotalSeqC",
+                    cols = colors.use, plot.cor = F) +
+    # geom_density2d(data = d, color = "black", size = 1) +
+     theme_gray() +
+     labs(x = "CD56 (ADT)", 
+          y = "CD3 (ADT)") +
+  geom_vline(xintercept = 4) + geom_hline(yintercept = 10)
+p
+ggsave("./Workflow/Figures/PBMCs_CD56CD3.pdf")
+TotalPBMC <- subset(TotalPBMC, subset = `adt_CD56-TotalSeqC` > 4, invert = T)
+TotalPBMC <- subset(TotalPBMC, subset = `adt_CD3-TotalSeqC` > 10, invert = T)
+
+d <- as.data.frame(FetchData(object = TotalPBMC, 
+                   vars = c("adt_CD16-TotalSeqC", "adt_CD14-TotalSeqC")))
+## Format colnames to match FeatureScatter syntax
+colnames(d) <- c("adt_CD16.TotalSeqC", "adt_CD14.TotalSeqC")
+p <- FeatureScatter(TotalPBMC, "adt_CD16-TotalSeqC", "adt_CD14-TotalSeqC",
+                    cols = colors.use, plot.cor = F) +
+    # geom_density2d(data = d, color = "black", size = 1) +
+     theme_gray() +
+     labs(x = "CD16 (ADT)", 
+          y = "CD14 (ADT)") +
+  geom_vline(xintercept = 5) + geom_hline(yintercept = 3.9)
+p
+ggsave("./Workflow/Figures/PBMCs_CD16CD14.pdf")
+TotalPBMC <- subset(TotalPBMC, subset = `adt_CD16-TotalSeqC` > 5, invert = T)
+TotalPBMC <- subset(TotalPBMC, subset = `adt_CD14-TotalSeqC` > 3.9, invert = T)
+
+VlnPlot(TotalPBMC, "IGHSum") + scale_y_log10() + theme(legend.position = "none")
+ggsave("./Workflow/Figures/TotalPBMC_IGHSum_Vln.pdf")
+VlnPlot(TotalPBMC, "nCount_VDJ") + scale_y_log10() + theme(legend.position = "none")
+ggsave("./Workflow/Figures/TotalPBMC_nCountVDJ_Vln.pdf")
+
+FeatureScatter(TotalPBMC, "nCount_VDJ", "IGHSum",
+                    cols = colors.use, plot.cor = T) + scale_x_log10() + scale_y_log10()
+ggsave("./Workflow/Figures/TotalPBMC_nCountVDJ_IGHSum_Correlation.pdf")
+
+
+
+PBMC_PCells <- subset(TotalPBMC, subset = nCount_VDJ > 1000)
+# 5 Plasma cells / 568 B cells
+PBMC_BCells <- subset(TotalPBMC, subset = nCount_VDJ > 1000, invert = T)
+# 563 B cells
+
+saveRDS(PBMC_BCells, "./Workflow/Data/TotalPBMC_BCells.rds")
+saveRDS(PBMC_PCells, "./Workflow/Data/TotalPBMC_PCells.rds")
+```
+# Merge all samples (PBMC & PT)
+## Initial UMAP & clustering for plasma cell subsets 
+```{r}
+PBMC_PCells <- readRDS("./Workflow/Data/TotalPBMC_PCells.rds")
+PT_PCells <- readRDS("./Workflow/Data/PT_PCells.rds")
+TotalPC <- merge(PT_PCells, PBMC_PCells, merge.data = T)
+
+
+
+cycling.genes <- c("MKI67", "PCNA", 
+                   'CCND1', "CCND2", "CCND3",
+                   "CCNE1", "CCNE2",
+                   "CCNA1", "CCNA2",
+                   "CCNB1", "CCNB2", "CCNB3")
+
+blastingbyid <- function(id){
+  s1 <- subset(TotalPC, idents = id)
+  blasting.percent <- sum(colSums(s1@assays$RNA@counts[cycling.genes, ]) > 0)/nrow(s1[[]])*100
+  return(blasting.percent)
+}
+ctlblastingdf <- mapply(c('PID4101', 'PID4101V', 'PID4XXXV'), FUN = blastingbyid)
+blastingdf <- mapply(c("PID4127", "PID4134", "PID4132", "PID4130", "PID4128V"),
+                      FUN = blastingbyid)
+blastingdf <- data.frame(percent.blasting = blastingdf)
+CTL.percentblasting <- mean(ctlblastingdf)
+
+blastingdf$days <- plyr::mapvalues(x = row.names(blastingdf),
+                                 from = c("PID4127", "PID4134", "PID4132", "PID4130", "PID4128V"),
+                                 to = c(2, 16, 30, 80, 180))
+  
+
+ggplot(blastingdf, aes(x = as.numeric(days), y = percent.blasting, color = "color")) + 
+  geom_point() + geom_line() +
+  ylab("Percentage Plasma Cells Actively Cycling") +
+  xlab("Days After First PCR+") + 
+  ggtitle("Percentage Cycling Plasma Cells of Infected/Convalescent Patients") +
+  scale_color_manual(values = colors.use) +
+  theme_grey() + theme(legend.position = "none") +
+  annotate("rect", xmin = -20, xmax = 200, ymin = min(ctlblastingdf), ymax = max(ctlblastingdf),
+           alpha = .1,fill = "blue") + 
+  ylim(0, 100) + coord_cartesian(ylim = c(0,100), xlim = c(0, 180)) +
+  annotate("text", x = 80, y = mean(ctlblastingdf), label = "Control/Vaccinated Level", vjust = 0.1)
+
+ggsave("./Workflow/Figures/Percent_Plasma_Cells_Cycling_LinePlot.pdf")
+
+
+
+
+isotypebyid <- function(id){
+  s1 <- subset(TotalPC, idents = id)
+  blasting.percent <- sum(s1[["Isotype"]] == "m", na.rm = T)/nrow(s1[[]])*100
+  return(blasting.percent)
+}
+ctlisotypedf <- mapply(c('PID4101', 'PID4101V', 'PID4XXXV'), FUN = isotypebyid)
+isotypedf <- mapply(c("PID4127", "PID4134", "PID4132", "PID4130", "PID4128V"),
+                      FUN = isotypebyid)
+isotypedf <- data.frame(percent.igm = isotypedf)
+
+isotypedf$days <- plyr::mapvalues(x = row.names(isotypedf),
+                                 from = c("PID4127", "PID4134", "PID4132", "PID4130", "PID4128V"),
+                                 to = c(2, 16, 30, 80, 180))
+  
+
+ggplot(isotypedf, aes(x = as.numeric(days), y = percent.igm, color = "color")) + 
+  geom_point() + geom_line() +
+  ylab("Percentage of Plasma Cells with IgM Isotype") +
+  xlab("Days After First PCR+") + 
+  ggtitle("Percentage IgM+ Plasma Cells of Infected/Convalescent Patients") +
+  scale_color_manual(values = colors.use) +
+  theme_grey() + theme(legend.position = "none")  +
+  annotate("rect", xmin = -20, xmax = 200, ymin = min(ctlisotypedf), ymax = max(ctlisotypedf),
+           alpha = .1,fill = "blue") + 
+  ylim(0, 100) + coord_cartesian(ylim = c(0,100), xlim = c(0, 180)) +
+  annotate("text", x = 20, y = mean(ctlisotypedf), label = "Control/Vaccinated Level", vjust = 0.1)
+
+ggsave("./Workflow/Figures/Percent_Plasma_Cells_IgM_LinePlot.pdf")
+
+
+VlnPlot(TotalPC, 'CCND2', group.by = "orig.ident")
+
+
+GetLISI(object = TotalBC, nSamples = 10)
+# LISI = 0.3150218 (iLISI = 0.6849782)
+
+Idents(TotalPC) <- TotalPC[["orig.ident"]]
+TotalPC@meta.data$Isotype <- factor(TotalPC@meta.data$Isotype,
+                                    levels = c("g1", "g2", "g3", "g4",
+                                               "a1", "a2", "m", "e"))
+Isotypebyid <- function(id){
+  s1 <- subset(TotalPC, idents = id)
+  s1.df <- count(s1$Isotype)
+  ggplot(data = s1.df, aes(x = x, y = freq, fill = x), ) +
+    geom_col() + scale_fill_manual(values = colors.use) +
+    ggtitle(paste(id, "Plasma Cells Isotype Usage")) + theme(legend.position = "none")
+  ggsave(paste0("./Workflow/Figures/", id, "_plasma_isotype_Usage.pdf"))
+}
+sapply(c("PID4101", "PID4101V", "PID4127", "PID4128V",
+         "PID4130", "PID4132", "PID4134", "PID4XXXV"), 
+       FUN = Isotypebyid)
+
+
+
+
+```
+
+## Initial UMAP & clustering for major B cell subsets 
+```{r}
+PBMC_BCells <- readRDS("./Workflow/Data/TotalPBMC_BCells.rds")
+PT_BCells <- readRDS("./Workflow/Data/PT_BCells.rds")
+TotalBC <- merge(PT_BCells, PBMC_BCells, merge.data = T)
+
+# independent variable genes
+TotalBC.list <- SplitObject(TotalBC, split.by = "orig.ident")
+features.list <- list()
+for (i in 1:length(TotalBC.list)) {
+    TotalBC.list[[i]] <- TotalBC.list[[i]] %>%
+                         FindVariableFeatures(selection.method = "vst", 
+                                              nfeatures = 2000)
+    features.list[[i]] <- TotalBC.list[[i]]@assays$RNA@var.features
+}
+var.features <- Reduce(intersect, features.list)
+
+TotalBC <- merge(TotalBC.list[[1]], 
+                 y = TotalBC.list[-1],
+                 project = "CHIRP")
+
+TotalBC@assays$RNA@var.features <- var.features
+rm(list = c("var.features", "TotalBC.list"))
+
+TotalBC <- TotalBC %>%
+           ScaleData() %>% 
+           RunPCA(npcs = 30)
+# Identify correct numbers of PCs
+ TotalBC.pca.test <- TestPCA(TotalBC)
+ TotalBC.pca.test[, 1:20]
+# 6 PCs with z > 1
+rm(TotalBC.pca.test)
+
+TotalBC <- TotalBC %>% 
+           RunUMAP(reduction = "pca", dims = 1:6) %>%
+           FindNeighbors(reduction = "pca", dims = 1:6) %>%
+           FindClusters(resolution = 1.5)
+
+
+
+GetLISI(object = TotalBC, nSamples = 10)
+# LISI = 0.3150218 (iLISI = 0.6849782)
+UMAPPlot(TotalBC, group.by = "seurat_clusters", cols = colors.use, label = T) + theme(legend.position = "none")
+ggsave("./Workflow/Figures/Total_BCell_UMAP_Clusters.pdf")
+
+UMAPPlot(TotalBC, group.by = "Status", cols = colors.use)
+ggsave("./Workflow/Figures/Total_BCell_UMAP_Status.pdf")
+
+UMAPPlot(TotalBC, group.by = "is.plasma", cols = colors.use)
+FeaturePlot(TotalBC, "CD27")
+ggsave("./Workflow/Figures/CD27_Feature_AllBCells_UMAP.pdf")
+
+VlnPlot(TotalBC, "CD27", cols = colors.use) + theme(legend.position = "none")
+ggsave("./Workflow/Figures/CD27_Vln_AllBCells_ByCluster.pdf")
+
+TotalMy <- subset(TotalBC, idents = c(2, 4, 8, 9, 10, 13, 17, 18))
+TotalNa <- subset(TotalBC, idents = c(2, 4, 8, 9, 10, 13, 17, 18), invert = T)
+TotalBC[["Major_Subset"]] <- plyr::mapvalues(Idents(TotalBC),
+                from = c(2, 4, 8, 9, 10, 13, 17, 18,
+                         0, 1, 3, 5, 6, 7, 11, 12, 14, 15, 16),
+                to = c(rep("Memory", 8), rep("Naive", 11)))
+
+UMAPPlot(TotalBC, group.by = "Major_Subset", cols = colors.use)
+ggsave("./Workflow/Figures/AllBCells_MajorSubsets_UMAP.pdf")
+
+saveRDS(TotalMy, "./Workflow/Data/Total_Memory.rds")
+saveRDS(TotalNa, "./Workflow/Data/Total_Naive.rds")
+saveRDS(TotalBC, "./Workflow/Data/Total_BCells.rds")
+
+Idents(TotalMy) <- TotalMy[["Status"]]
+m <- FindMarkers(TotalMy, ident.1 = "Infected", ident.2 = "Vaccinated", only.pos = T)
+write.csv(m, "./Workflow/Data/MemoryCells_Infected_Markers.csv")
+m <- FindMarkers(TotalMy, ident.1 = "Vaccinated", ident.2 = "Infected", only.pos = T)
+write.csv(m, "./Workflow/Data/MemoryCells_Vaccinated_Markers.csv")
+
+Idents(TotalNa) <- TotalNa[["Status"]]
+m <- FindMarkers(TotalNa, ident.1 = "Infected", ident.2 = "Vaccinated", only.pos = T)
+write.csv(m, "./Workflow/Data/NaiveCells_Infected_Markers.csv")
+m <- FindMarkers(TotalNa, ident.1 = "Vaccinated", ident.2 = "Infected", only.pos = T)
+write.csv(m, "./Workflow/Data/NaiveCells_Vaccinated_Markers.csv")
+
+
+```
+# Public CDR3 Repertoire Search
+```{r}
+library(stringdist)
+
+PBMC_BCells <- readRDS("./Workflow/Data/TotalPBMC_BCells.rds")
+PT_BCells <- readRDS("./Workflow/Data/PT_BCells.rds")
+PBMC_PCells <- readRDS("./Workflow/Data/TotalPBMC_pCells.rds")
+PT_PCells <- readRDS("./Workflow/Data/PT_PCells.rds")
+TotalCells <- merge(PT_BCells, 
+                    y = c(PBMC_BCells, PT_PCells, PBMC_PCells), 
+                    merge.data = T)
+# independent variable genes
+object.list <- SplitObject(TotalCells, split.by = "orig.ident")
+features.list <- list()
+for (i in 1:length(object.list)) {
+    object.list[[i]] <- object.list[[i]] %>%
+                         FindVariableFeatures(selection.method = "vst", 
+                                              nfeatures = 2000)
+    features.list[[i]] <- object.list[[i]]@assays$RNA@var.features
+}
+var.features <- Reduce(intersect, features.list)
+
+TotalCells <- merge(object.list[[1]], 
+                 y = object.list[-1],
+                 project = "CHIRP")
+
+TotalCells@assays$RNA@var.features <- var.features
+rm(list = c("var.features", "TotalBC.list"))
+
+TotalCells <- TotalCells %>%
+              ScaleData() %>% 
+              RunPCA(npcs = 30)
+# Identify correct numbers of PCs
+ object.pca.test <- TestPCA(TotalCells)
+ object.pca.test[, 1:20]
+ ElbowPlot(TotalCells)
+# 6 PCs with z > 1
+rm(object.pca.test)
+
+TotalCells <- TotalCells %>% 
+              RunUMAP(reduction = "pca", dims = 1:9) %>%
+              FindNeighbors(reduction = "pca", dims = 1:9) %>%
+              FindClusters(resolution = 2)
+
+
+
+GetLISI(object = TotalCells, nSamples = 10)
+# iLISI = 0.6499226
+
+# Public sequences ("Convergent antibody responses to SARS-CoV-2 in convalescent individuals")
+
+# First apply (loose) major subgroup classifications
+UMAPPlot(TotalCells, group.by = "orig.ident", cols = colors.use)
+TotalCells$Major_Classification <- rep("Naive", nrow(TotalCells[[]]))
+TotalCells@meta.data[which(TotalCells@assays$RNA@counts["CD27", ] > 0), "Major_Classification"] <- "Memory"
+TotalCells@meta.data[which(TotalCells@meta.data$nCount_VDJ > 800), "Major_Classification"] <- "Plasma"
+
+UMAPPlot(TotalCells, group.by = "Major_Classification", cols = colors.use)
+UMAPPlot(TotalCells, group.by = "Status", cols = colors.use)
+
+match.cells <- c()
+
+CDR3s <- c('ARDYGDFYFDY')
+for(s in CDR3s){
+  t <- mapply(TotalCells@meta.data$CDR3_aa,
+            FUN = function(x) stringdist(a = x, b = s, method = "lv"))
+  match.cells <- c(match.cells,
+                   rownames(TotalCells@meta.data)[which(t == 0)])
+}
+CDR3s <- c('ARE-YGMDV')
+for(s in CDR3s){
+  t <- mapply(TotalCells@meta.data$CDR3_aa,
+            FUN = function(x) stringdist(a = x, b = s, method = "lv"))
+  match.cells <- c(match.cells,
+                   rownames(TotalCells@meta.data)[which(t <= 1)])
+}
+           
+CDR3s <- c('ARD--VDTAMVTWFDY')
+for(s in CDR3s){
+  t <- mapply(TotalCells@meta.data$CDR3_aa,
+            FUN = function(x) stringdist(a = x, b = s, method = "lv"))
+  match.cells <- c(match.cells,
+                   rownames(TotalCells@meta.data)[which(t <= 2)])
+}
+           
+CDR3s <- c('AAP-CSGGSC-D-FDI',
+           'ARD-G--YFDY')
+for(s in CDR3s){
+  t <- mapply(TotalCells@meta.data$CDR3_aa,
+            FUN = function(x) stringdist(a = x, b = s, method = "lv"))
+  match.cells <- c(match.cells,
+                   rownames(TotalCells@meta.data)[which(t <= 3)])
+}
+
+CDR3s <- c('-RD-G--YFDY')
+for(s in CDR3s){
+  t <- mapply(TotalCells@meta.data$CDR3_aa,
+            FUN = function(x) stringdist(a = x, b = s, method = "lv"))
+  match.cells <- c(match.cells,
+                   rownames(TotalCells@meta.data)[which(t <= 4)])
+}
+
+CDR3s <- c('AA--C--TSC-DAFD',
+           'ARD--QGMA--TY-FDY',
+           'ARD---DTA-VT-FDY')
+for(s in CDR3s){
+  t <- mapply(TotalCells@meta.data$CDR3_aa,
+            FUN = function(x) stringdist(a = x, b = s, method = "lv"))
+  match.cells <- c(match.cells,
+                   rownames(TotalCells@meta.data)[which(t <= 5)])
+}
+           
+CDR3s <- c('AA--CS--SC-D-FDI',
+           'AK--G-YCGGGNCY-G--DY')
+for(s in CDR3s){
+  t <- mapply(TotalCells@meta.data$CDR3_aa,
+            FUN = function(x) stringdist(a = x, b = s, method = "lv"))
+  match.cells <- c(match.cells,
+                   rownames(TotalCells@meta.data)[which(t <= 6)])
+}
+           
+UMAPPlot(TotalCells, group.by = "Major_Classification", 
+         cells.highlight = match.cells)
+
+TotalCells@meta.data[match.cells, ]
+
+VJ.cells <- rownames(TotalCells[[]])[which(TotalCells@meta.data$IGH_VJ == "ighj3_ighv1-58")]
+UMAPPlot(TotalCells, cells.highlight = VJ.cells)
+VJ.cells <- rownames(TotalCells[[]])[which(TotalCells@meta.data$IGH_VJ == "ighj4_ighv3-30")]
+UMAPPlot(TotalCells, cells.highlight = VJ.cells)
+VJ.cells <- rownames(TotalCells[[]])[which(TotalCells@meta.data$IGH_VJ == "ighj5_ighv3-30")]
+UMAPPlot(TotalCells, cells.highlight = VJ.cells)
+
+
+
+infected.data <- TotalCells@meta.data[which(TotalCells@meta.data$orig.ident %in% c("PID4127", "PID4134", "PID4132", "PID4130", "PID4128V")), ]
+infected.data.nonzero <- TotalCells@meta.data[which(TotalCells@meta.data$Lineage_Freq > 1), ]
+CTL.data <- TotalCells@meta.data[which(TotalCells@meta.data$orig.ident %in% c("PID4101", "PBMC001", "PBMC002", "PBMC003")), "Lineage_Freq"]
+VAX.data <- TotalCells@meta.data[which(TotalCells@meta.data$orig.ident %in% c("PID4101V", "PID4XXXV")), "Lineage_Freq"]
+
+ggplot(infected.data, 
+       aes(x = as.numeric(days.after.pcr), y = Lineage_Freq, color = "black")) + 
+  geom_point() +
+  stat_summary(data = infected.data.nonzero, aes(y = Lineage_Freq), fun = mean, colour = "red", geom = "line") +
+  ylab("Clonal frequency (clonal expansion)") + xlab("Days After First PCR+") + 
+  ggtitle("Percentage Clonally Expanded Cells (70% CDR3 match) of \nInfected/Convalescent Patients") +
+  scale_color_manual(values = c("black", colors.use)) +
+  theme_grey() + theme(legend.position = "none") +
+  ylim(0, 100) + coord_cartesian(ylim = c(0,100), xlim = c(0, 180)) +
+  annotate("rect", xmin = -20, xmax = 200, ymin = min(CTL.data), ymax = max(CTL.data),
+           alpha = .1,fill = "blue") +
+  annotate("text", x = 150, y = max(CTL.data), label = "Control Range", vjust = 1) +
+  annotate("rect", xmin = -20, xmax = 200, ymin = min(VAX.data), ymax = max(VAX.data),
+           alpha = .1,fill = "red") +
+  annotate("text", x = 80, y = max(VAX.data), label = "Vaccinated Range", vjust = 1)
+
+ggsave("./Workflow/Figures/Clonal_Expansion.pdf")
+
+saveRDS(TotalCells, "./Workflow/Data/TotalCells.rds")
+
+```
+## NAIVE B cells
+```{r}
+TotalNa
+# independent variable genes
+object.list <- SplitObject(TotalNa, split.by = "orig.ident")
+features.list <- list()
+for (i in 1:length(object.list)) {
+    object.list[[i]] <- object.list[[i]] %>%
+                         FindVariableFeatures(selection.method = "vst", 
+                                              nfeatures = 2000)
+    features.list[[i]] <- object.list[[i]]@assays$RNA@var.features
+}
+var.features <- Reduce(intersect, features.list)
+
+TotalNa <- merge(object.list[[1]], 
+                 y = object.list[-1],
+                 project = "CHIRP", merge.data = T)
+
+TotalNa@assays$RNA@var.features <- var.features
+rm(list = c("var.features", 'features.list', "object.list"))
+
+TotalNa <- TotalNa %>%
+           ScaleData() %>% 
+           RunPCA(npcs = 30)
+# Identify correct numbers of PCs
+ results.pca.test <- TestPCA(TotalNa)
+ results.pca.test[, 1:20]
+# 6 PCs with z > 1
+rm(results.pca.test)
+
+TotalNa <- TotalNa %>% 
+           RunUMAP(reduction = "pca", dims = 1:4) %>%
+           FindNeighbors(reduction = "pca", dims = 1:4) %>%
+           FindClusters(resolution = 0.8)
+
+
+GetLISI(object = TotalNa, nSamples = 10)
+# iLISI = 0.6686976
+
+UMAPPlot(TotalNa, group.by = "orig.ident", cols = colors.use)
+UMAPPlot(TotalNa, group.by = "Status", cols = colors.use)
+
+UMAPPlot(TotalNa, group.by = "seurat_clusters", cols = colors.use)
+
+m <- FindMarkers(TotalNa, ident.1 = 1)
+m
+FeaturePlot(TotalNa, "IGKV1-39")
+FeaturePlot(TotalNa, "IGKV1D-39")
+FeaturePlot(TotalNa, "IGLC2")
+
+UMAPPlot(TotalNa, group.by = "Isotype", cols = colors.use)
+
+
+TotalNa@meta.data$activation <- colSums(TotalNa@assays$RNA@data[c('ITGAX', 'CD80', 'CD86', 'NR4A1', 'CXCR3'), ])
+Idents(TotalNa) <- TotalNa[["orig.ident"]]
+activationbyid <- function(id){
+  s1 <- subset(TotalNa, idents = id)
+  active.percent <- sum(s1[["activation"]] > 0, na.rm = T)/nrow(s1[[]])*100
+  return(active.percent)
+}
+ctlactivationdf <- mapply(c('PID4101', "PBMC001", "PBMC003"), FUN = activationbyid)
+vaxactivationdf <- mapply(c('PID4101V', "PID4XXXV"), FUN = activationbyid)
+# PBMC002 only contained 22 naive cells and was excluded from ctl group
+
+activateddf <- mapply(c("PID4127", "PID4134", "PID4132", "PID4130", "PID4128V"),
+                      FUN = activationbyid)
+activateddf <- data.frame(active.percent = activateddf)
+
+activateddf$days <- plyr::mapvalues(x = row.names(activateddf),
+                                 from = c("PID4127", "PID4134", "PID4132", "PID4130", "PID4128V"),
+                                 to = c(2, 16, 30, 80, 180))
+  
+
+ggplot(activateddf, aes(x = as.numeric(days), y = active.percent, color = "color")) + 
+  geom_point() + geom_line() +
+  ylab("Percentage of Naive Cells with Activated Phenotype") +
+  xlab("Days After First PCR+") + 
+  ggtitle("Percentage Active Naive (of total Naive) Infected/Convalescent Patients") +
+  scale_color_manual(values = colors.use) +
+  theme_grey() + theme(legend.position = "none") + 
+  ylim(0, 100) + coord_cartesian(ylim = c(0,30), xlim = c(0, 180)) +
+  annotate("rect", xmin = -20, xmax = 200, ymin = min(ctlactivationdf), ymax = max(ctlactivationdf),
+           alpha = .1,fill = "blue") +
+  annotate("text", x = 50, y = mean(ctlactivationdf), label = "Control Range", vjust = -2) +
+  annotate("rect", xmin = -20, xmax = 200, ymin = min(vaxactivationdf), ymax = max(vaxactivationdf),
+           alpha = .1,fill = "red") +
+  annotate("text", x = 35, y = mean(vaxactivationdf), label = "Vaccinated Range", vjust = 2)
+ggsave("./Workflow/Figures/Percent_Active_Naive_Timeline.pdf")
+```
+## MEMORY B cells
+```{r}
+TotalMy
+object.list <- SplitObject(TotalMy, split.by = "orig.ident")
+features.list <- list()
+for (i in 1:length(object.list)) {
+    object.list[[i]] <- object.list[[i]] %>%
+                         FindVariableFeatures(selection.method = "vst", 
+                                              nfeatures = 2000)
+    features.list[[i]] <- object.list[[i]]@assays$RNA@var.features
+}
+var.features <- Reduce(intersect, features.list)
+
+TotalMy <- merge(object.list[[1]], 
+                 y = object.list[-1],
+                 project = "CHIRP", merge.data = T)
+
+TotalMy@assays$RNA@var.features <- var.features
+rm(list = c("var.features", 'features.list', "object.list"))
+
+TotalMy <- TotalMy %>%
+           ScaleData() %>% 
+           RunPCA(npcs = 30)
+# Identify correct numbers of PCs
+ results.pca.test <- TestPCA(TotalMy)
+ results.pca.test[, 1:20]
+# 6 PCs with z > 1
+rm(results.pca.test)
+
+TotalMy <- TotalMy %>% 
+           RunUMAP(reduction = "pca", dims = 1:4) %>%
+           FindNeighbors(reduction = "pca", dims = 1:4) %>%
+           FindClusters(resolution = 0.8)
+
+
+GetLISI(object = TotalMy, nSamples = 10)
+# iLISI = 0.6048235
+
+Idents(TotalMy) <- TotalMy[["orig.ident"]]
+
+Isotypebyid <- function(id){
+  s1 <- subset(TotalMy, idents = id)
+  s1.df <- count(s1$Isotype)
+  ggplot(data = s1.df, aes(x = x, y = freq, fill = x), ) +
+    geom_col() + scale_fill_manual(values = colors.use) +
+    ggtitle(paste(id, "Memory Cells Isotype Usage")) + theme(legend.position = "none")
+  ggsave(paste0("./Workflow/Figures/", id, "_memory_isotype_Usage.pdf"))
+}
+sapply(unique(TotalMy@meta.data$orig.ident), FUN = Isotypebyid)
+vaxactivationdf <- mapply(c('PID4101V', "PID4XXXV"), FUN = activationbyid)
+
+
+
+
+```
+# Correlate flowBEAT data with repertoire
+```{r}
+# PID4101 (negative CTL)
+
+vals <- read.csv("~/OneDrive - Emory University/Ghosn_Lab/FlowBEAT/CHIRP_09.10_Viz_Norm.csv")
+vals[vals < 0] <- 0
+#Dn <- vals[which(vals$Sample == "PID4101"), ]
+Dn.format <- vals[, c("Sample", "Antigen", "IgG1")]
+colnames(Dn.format) <- c("Sample", "Antigen", "Value")
+Dn.format$Isotype <- rep("IgG1", nrow(Dn.format))
+for(g in c('IgG2', 'IgG3', 'IgG4', 'IgA1', 'IgA2', 'IgM', 'IgE')){
+  Dn.f <- vals[, c("Sample", "Antigen", g)]
+  colnames(Dn.f) <- c("Sample", "Antigen", "Value")
+  Dn.f$Isotype <- rep(g, nrow(Dn.f))
+  Dn.format <- rbind(Dn.format, Dn.f)
+}
+Dn.format$Isotype <- factor(Dn.format$Isotype, 
+                            levels = c('IgG1', 'IgG2', 'IgG3', 'IgG4', 'IgA1', 'IgA2', 'IgM', 'IgE'))
+colnames(Dn.format) <- c("Sample", "Antigen", "Value", "Isotype")
+
+
+Dn.format <- aggregate(Dn.format$Value, by = list(Sample = Dn.format$Sample, Isotype = Dn.format$Isotype), FUN=sum)
+colnames(Dn.format) <- c("Sample", "Isotype", "Value")
+
+
+Dn.format$VDJ_Freq <- rep(0, nrow(Dn.format))
+
+TotalPC <- readRDS("./Workflow/Data/PT_PCells.rds")
+Idents(TotalPC) <- TotalPC[["orig.ident"]]
+for(id in c("PID4101", "PID4101V", "PID4127", "PID4128V", 
+         "PID4130", "PID4132", "PID4134", "PID4XXXV")){
+  s1 <- subset(TotalPC, idents = id)
+  s1.df <- count(s1$Isotype)
+  s1.df$freq <- s1.df$freq/sum(s1.df$freq)
+  s1.df$x <- plyr::mapvalues(s1.df$x,
+                             from = c("g1", "g2", "g3", "g4", "a1", "a2", "m", "e"),
+                             to = c('IgG1', 'IgG2', 'IgG3', 'IgG4', 'IgA1', 'IgA2', 'IgM', 'IgE'))
+  s1.df <- s1.df[which(!is.na(s1.df$x)), ]
+  row.names(s1.df) <- s1.df$x
+  for(ig in unique(s1.df$x)){
+    Dn.format[which(Dn.format$Sample == id & Dn.format$Isotype == ig), 'VDJ_Freq'] <- s1.df[ig, "freq"]
+  }
+}
+
+
+ggplot(Dn.format, aes(x = VDJ_Freq, y = Value, color = Isotype)) + 
+  geom_point() + 
+  ggcyto::scale_y_flowjo_biexp() +
+  scale_color_manual(values = colors.use)
+
+ggsave("./Workflow/Figures/TotalB_Cell_IsotypevsFlowBEAT.pdf", height = 4.51, width = 7.29)
+
+
+
+
+for(id in c("PID4101", "PID4101V", "PID4127", "PID4128V", 
+         "PID4130", "PID4132", "PID4134", "PID4XXXV")){
+  s1 <- subset(TotalBC, idents = id)
+  s1.df <- aggregate(s1$nCount_VDJ, by = list(Isotype = s1$Isotype), FUN=sum)
+  s1.df$x <- s1.df$x
+  s1.df$Isotype <- plyr::mapvalues(s1.df$Isotype,
+                             from = c("g1", "g2", "g3", "g4", "a1", "a2", "m", "e"),
+                             to = c('IgG1', 'IgG2', 'IgG3', 'IgG4', 'IgA1', 'IgA2', 'IgM', 'IgE'))
+  s1.df <- s1.df[which(!is.na(s1.df$Isotype)), ]
+  row.names(s1.df) <- s1.df$Isotype
+  for(ig in unique(s1.df$Isotype)){
+    Dn.format[which(Dn.format$Sample == id & Dn.format$Isotype == ig), 'VDJ_Freq'] <- s1.df[ig, "x"]
+  }
+}
+
+
+ggplot(Dn.format, aes(x = VDJ_Freq, y = Value, color = Isotype)) + 
+  geom_point() + 
+  ggcyto::scale_y_flowjo_biexp() + ggcyto::scale_x_flowjo_biexp() + 
+  scale_color_manual(values = colors.use)
+
+ggsave("./Workflow/Figures/Plasma_Cell_VDJvsFlowBEAT.pdf", height = 4.51, width = 7.29)
+ggsave("./Workflow/Figures/TotalB_Cell_VDJvsFlowBEAT.pdf", height = 4.51, width = 7.29)
+ggsave("./Workflow/Figures/Memory_Cell_VDJvsFlowBEAT.pdf", height = 4.51, width = 7.29)
+```
+

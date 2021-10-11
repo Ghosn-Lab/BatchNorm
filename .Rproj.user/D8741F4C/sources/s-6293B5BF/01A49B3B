@@ -1,0 +1,26 @@
+{
+    "id": "01A49B3B",
+    "path": "~/OneDrive - Emory University/Ghosn_Lab/scCOVID/CHIRP_BCell_scRNA/CHIRP_Workflow.Rmd",
+    "project_path": null,
+    "type": "r_markdown",
+    "hash": "171536358",
+    "contents": "",
+    "dirty": false,
+    "created": 1633985179467.0,
+    "source_on_save": false,
+    "relative_order": 3,
+    "properties": {
+        "chunk_output_type": "inline",
+        "cursorPosition": "195,0",
+        "scrollLine": "195",
+        "docOutlineVisible": "1"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1633625694,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1633985710048,
+    "read_only": false,
+    "read_only_alternatives": []
+}

@@ -1,0 +1,92 @@
+"0","library(Matrix)"
+"0","library(Seurat)"
+"2","Registered S3 method overwritten by 'data.table':
+  method           from
+  print.data.table     
+"
+"2","Registered S3 method overwritten by 'htmlwidgets':
+  method           from         
+  print.htmlwidget tools:rstudio
+"
+"2","Registered S3 method overwritten by 'spatstat.geom':
+  method     from
+  print.boxx cli 
+"
+"2","Attaching SeuratObject
+"
+"0","library(dplyr)"
+"2","
+Attaching package: ‘dplyr’
+
+"
+"2","The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+"
+"2","The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+"
+"0","library(ggcyto)"
+"2","Loading required package: ggplot2
+"
+"2","Loading required package: flowCore
+"
+"2","
+Attaching package: ‘flowCore’
+
+"
+"2","The following object is masked from ‘package:Matrix’:
+
+    %&%
+
+"
+"2","Loading required package: ncdfFlow
+"
+"2","Loading required package: RcppArmadillo
+"
+"2","Loading required package: BH
+"
+"2","Loading required package: flowWorkspace
+"
+"2","As part of improvements to flowWorkspace, some behavior of
+GatingSet objects has changed. For details, please read the section
+titled ""The cytoframe and cytoset classes"" in the package vignette:
+
+  vignette(""flowWorkspace-Introduction"", ""flowWorkspace"")
+"
+"0","library(RColorBrewer)"
+"0","library(lisi)"
+"0",""
+"0","# Set data directory"
+"0","dd <- ""~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/PBMC/"""
+"0","colors.use <- c(brewer.pal(8, 'Set1')[c(1:5,7:8)], brewer.pal(7, 'Dark2'),  'blue4', 'orangered', 'orangered4', c(brewer.pal(12, 'Paired'), brewer.pal(6, 'Accent'))[c(1:10, 12, 15:20)])"
+"0","# Function to z-score each PC's percentage of the total variance captured"
+"0","TestPCA <- function(object = NULL, "
+"0","                    genes.use = object@assays$RNA@var.features,"
+"0","                    mtx.use = object@assays$RNA@scale.data){"
+"0","  data.use <- mtx.use[genes.use, ]"
+"0","  pca.results <- svd(x = t(data.use))"
+"0","  sdev <- pca.results$d/sqrt(max(1, ncol(data.use) - 1))"
+"0","  PCVariance <- rbind(SD = sdev,"
+"0","                      Proportion = (sdev^2)/sum(sdev^2), "
+"0","                      Cumulative = cumsum(sdev^2)/sum(sdev^2))"
+"0","  m <- mean(PCVariance['Proportion', ])"
+"0","  s <- sd(PCVariance['Proportion', ])"
+"0","  PCVariance <- rbind(PCVariance, "
+"0","                      ZScore = (PCVariance['Proportion', ] - m)/s)"
+"0","  return(PCVariance)"
+"0","}"
+"0","# Function to select mitochondrial percent by X Std Dev above median"
+"0","MitoFilter <- function(obj){"
+"0","  max.mito <<- 5*sd(obj$percent.mito) + median(obj$percent.mito)"
+"0","  obj <- obj %>% subset(percent.mito < max.mito) %>% subset(nFeature_RNA > 100)"
+"0","  return(obj)"
+"0","  rm(max.mito)"
+"0","}"
+"0","# Function to correct ADT names"
+"0","split.CD <- function(x){"
+"0","  toupper(trimws(unlist(lapply(strsplit(x, ""_""), '[[', 1))))"
+"0","}"

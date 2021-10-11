@@ -1,0 +1,15 @@
+"0","```r
+filtered.data <- Read10X(data.dir = \"~/OneDrive - Emory University/Ghosn_lab/Batch/Data/5GEX_PBMC3_46yoM_H1/Batch1/\")
+H1 <- CreateSeuratObject(counts = filtered.data$`Gene Expression`)
+H1
+PBMC.4A
+filtered.data <- Read10X(data.dir = \"~/OneDrive - Emory University/Ghosn_lab/Batch/Data/5GEX_PBMC3_46yoM_H1/Batch2/\")
+H2 <- CreateSeuratObject(counts = filtered.data$`Gene Expression`)
+H2
+PBMC.4B
+
+# H1 = 6392
+# H2 = 6423
+# 4A = 6374
+# 4B = 6918
+```"

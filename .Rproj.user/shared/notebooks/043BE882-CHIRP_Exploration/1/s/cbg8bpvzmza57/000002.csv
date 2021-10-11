@@ -1,0 +1,75 @@
+"0","```r
+TotalPT <- readRDS(\"./Data/TotalPT_VDJ.rds\")
+
+plasma.cells <- WhichCells(TotalPT, expression = `nCount_VDJ` >= 500)
+TotalPT@meta.data$is.plasma.cell <- rep(F, nrow(TotalPT@meta.data))
+TotalPT@meta.data[plasma.cells, \"is.plasma.cell\"] <- T
+
+# independent variable genes & normalization
+Idents(TotalPT) <- TotalPT[[\"orig.ident\"]]
+# Run \"standard\" Seurat workflow on a list of samples, independently:
+TotalPT.list <- SplitObject(TotalPT, split.by = \"orig.ident\")
+features.list <- list()
+for (i in 1:length(TotalPT.list)) {
+    TotalPT.list[[i]] <- TotalPT.list[[i]] %>% 
+                         NormalizeData(normalization.method = \"LogNormalize\", 
+                                       assay = \"RNA\", scale.factor = 10000) %>% 
+                         NormalizeData(normalization.method = \"CLR\", 
+                                       assay = \"ADT\") %>%
+                         FindVariableFeatures(selection.method = \"vst\", 
+                                              nfeatures = 2000)
+    features.list[[i]] <- TotalPT.list[[i]]@assays$RNA@var.features
+}
+var.features <- Reduce(intersect, list(features.list[[1]],
+                                       features.list[[2]],
+                                       features.list[[3]],
+                                       features.list[[4]],
+                                       features.list[[5]],
+                                       features.list[[6]],
+                                       features.list[[7]],
+                                       features.list[[8]]))
+TotalPT <- merge(TotalPT.list[[1]], 
+                 y = c(TotalPT.list[[2]],
+                       TotalPT.list[[3]],
+                       TotalPT.list[[4]],
+                       TotalPT.list[[5]],
+                       TotalPT.list[[6]],
+                       TotalPT.list[[7]],
+                       TotalPT.list[[8]]),
+                 project = \"CHIRP\")
+TotalPT@assays$RNA@var.features <- var.features
+rm(list = c(\"var.features\", \"TotalPT.list\"))
+
+TotalPT <- TotalPT %>%
+           ScaleData() %>% 
+           RunPCA(npcs = 30)
+# Identify correct numbers of PCs
+ TotalPT.pca.test <- TestPCA(TotalPT)
+ TotalPT.pca.test[, 1:20]
+# 7 PCs with z > 1
+rm(TotalPT.pca.test)
+
+TotalPT <- TotalPT %>% 
+           RunUMAP(reduction = \"pca\", dims = 1:7) %>%
+           FindNeighbors(reduction = \"pca\", dims = 1:7) %>%
+           FindClusters(resolution = .8)
+
+GetLISI <- function(object, nSamples) {
+  coords <- object@reductions$umap@cell.embeddings
+  sample_cats <- data.frame(\"orig.ident\" = object@meta.data$orig.ident)
+  res <- lisi::compute_lisi(coords, sample_cats, c('orig.ident'))
+  sample.lisi <- median(res$orig.ident)
+  adjusted.lisi <- (sample.lisi - 1) / (nSamples - 1)
+  return(adjusted.lisi)
+}
+
+GetLISI(object = TotalPT, nSamples = 2)
+# LISI = 0.4459723 (iLISI = 0.5540277)
+# Sex LISI = 0.02283307 (0.9771669)
+
+DimPlot(TotalPT, group.by = \"sex\")
+ggsave(\"./Figures/BatchOpt_TotalPT_Sex_UMAP.pdf\")
+
+DimPlot(TotalPT, group.by = \"orig.ident\")
+ggsave(\"./Figures/BatchOpt_TotalPT_orig.ident_UMAP.pdf\")
+```"

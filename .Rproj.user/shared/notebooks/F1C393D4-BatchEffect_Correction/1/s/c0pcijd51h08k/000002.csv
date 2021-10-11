@@ -1,0 +1,26 @@
+"0","library(knitr)
+library(dplyr)
+library(Seurat)
+library(ggplot2)
+library(lisi)
+library(harmony)
+"
+"2","Loading required package: Rcpp
+"
+"0","library(rliger)"
+"2","Loading required package: cowplot
+"
+"2","Loading required package: Matrix
+"
+"2","Loading required package: patchwork
+"
+"2","
+Attaching package: ‘patchwork’
+
+"
+"2","The following object is masked from ‘package:cowplot’:
+
+    align_plots
+
+"
+"0","library(SeuratWrappers)"

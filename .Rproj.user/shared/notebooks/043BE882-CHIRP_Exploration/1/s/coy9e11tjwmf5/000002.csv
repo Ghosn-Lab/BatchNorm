@@ -1,0 +1,6 @@
+"0","```r
+length(which(TotalPT@meta.data$dumpchannel > 0)) / nrow(TotalPT@meta.data)
+
+```"
+"1","[1] 0.05867202
+"

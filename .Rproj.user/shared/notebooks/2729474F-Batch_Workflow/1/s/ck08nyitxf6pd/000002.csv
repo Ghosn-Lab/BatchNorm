@@ -1,0 +1,10 @@
+"0","```r
+chisq.test(tab)
+
+```"
+"1","
+	Pearson's Chi-squared test
+
+data:  tab
+X-squared = 0.076243, df = 12, p-value = 1
+"

@@ -1,0 +1,46 @@
+"0","```r
+# Read adt matrices for PID4101
+raw.data <- Read10X(data.dir = paste0(dd, 'PID4101/Raw/'), 
+                    gene.column = 2, unique.features = TRUE)
+
+```"
+"1","10X data contains more than one type and is being returned as a list containing matrices of each type.
+"
+"0","```r
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4101/Filtered'), 
+                   gene.column = 2, unique.features = TRUE)
+```"
+"1","10X data contains more than one type and is being returned as a list containing matrices of each type.
+"
+"0","```r
+# get ADT data for real cells
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+rm(fil.data)
+
+# get ADT data for background droplets
+adt.raw <- as.matrix(raw.data$`Antibody Capture`)
+rm(raw.data)
+
+# Remove \"true\" cell barcodes data from raw matrix to make \"true background\"
+cells.drop <- (colnames(adt.raw) %in% colnames(adt.fil))
+adt.raw <- adt.raw[, !cells.drop]
+# Remove empty ADT rows from background cells
+adt.raw <- adt.raw[which(rowSums(adt.raw) > 0),]
+raw.frame <- data.frame(cells = colnames(adt.raw), nUMI = colSums(adt.raw))
+fil.frame <- data.frame(cells = colnames(adt.fil), nUMI = colSums(adt.fil))
+
+# Plot to determine cutoff value
+cutoff <- c(2150, 4600)
+
+p1 <- ggplot(raw.frame, aes(x = nUMI)) +
+      geom_histogram(binwidth = 25) +
+      geom_histogram(data = fil.frame, aes(fill = \"x\"), binwidth = 25) + 
+      scale_fill_manual(values = \"#E41A1C\") +
+      coord_cartesian(xlim = c(0, 10000), ylim = c(0, 10000)) +
+      geom_vline(xintercept = cutoff, linetype = \"dashed\",
+                 color = \"#377EB8\", size = 1) +
+      theme(legend.position = \"none\") +
+      ggtitle(\"PID4101 (Visit 1) ADT Histogram with DSB Cutoffs\")
+
+ggsave(paste0(dd, \"Figures/DSB_Figs/PID4101_DSB_ADT_Histogram.pdf\"), p1, width = 7, height = 7)
+```"

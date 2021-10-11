@@ -1,0 +1,11 @@
+"0","```r
+wilcox.test(S5A.genes, S5B.genes)
+
+```"
+"1","
+	Wilcoxon rank sum test with continuity correction
+
+data:  S5A.genes and S5B.genes
+W = 6551400, p-value < 2.2e-16
+alternative hypothesis: true location shift is not equal to 0
+"

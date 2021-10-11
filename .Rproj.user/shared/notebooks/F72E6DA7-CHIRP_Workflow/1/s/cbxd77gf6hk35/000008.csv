@@ -1,0 +1,36 @@
+"0","```r
+TotalPT[['is.plasma']] <- rep(FALSE, nrow(TotalPT@meta.data))
+TotalPT@meta.data[WhichCells(TotalPT, expression = `nCount_VDJ` >= 800), \"is.plasma\"] <- TRUE
+
+Idents(TotalPT) <- TotalPT[['orig.ident']]
+plasmabyid <- function(id){
+  s1 <- subset(TotalPT, idents = id)
+  plasma.percent <- sum(s1$is.plasma)/nrow(s1[[]])*100
+  return(plasma.percent)
+}
+ctlplasmadf <- mapply(c('PID4101', 'PID4101V', 'PID4XXXV'), FUN = plasmabyid)
+plasmadf <- mapply(c(\"PID4127\", \"PID4134\", \"PID4132\", \"PID4130\", \"PID4128V\"),
+                      FUN = plasmabyid)
+plasmadf <- data.frame(percent.plasma = plasmadf)
+
+plasmadf$days <- plyr::mapvalues(x = row.names(plasmadf),
+                                 from = c(\"PID4127\", \"PID4134\", \"PID4132\", \"PID4130\", \"PID4128V\"),
+                                 to = c(2, 16, 30, 80, 180))
+  
+
+ggplot(plasmadf, aes(x = as.numeric(days), y = percent.plasma, color = \"color\")) + 
+  geom_point() + geom_line() +
+  ylab(\"Percentage Plasma Cells\") +
+  xlab(\"Days After First PCR+\") + 
+  ggtitle(\"Percentage Plasma Cells of Infected/Convalescent Patients\") +
+  scale_color_manual(values = colors.use) +
+  theme_grey() + theme(legend.position = \"none\")  +
+  annotate(\"rect\", xmin = -20, xmax = 200, ymin = min(ctlplasmadf), ymax = max(ctlplasmadf),
+           alpha = .1,fill = \"blue\") + 
+  ylim(0, 100) + coord_cartesian(ylim = c(0,100), xlim = c(0, 180)) +
+  annotate(\"text\", x = 20, y = mean(ctlplasmadf), label = \"Control/Vaccinated Level\", vjust = 0.1)
+
+ggsave(\"./Workflow/Figures/Percent_Plasma_Cells_LinePlot.pdf\")
+```"
+"1","Saving 7.29 x 4.51 in image
+"

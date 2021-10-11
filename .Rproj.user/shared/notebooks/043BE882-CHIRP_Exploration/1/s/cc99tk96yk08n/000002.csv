@@ -1,0 +1,44 @@
+"0","```r
+GenerateTriplePlot(infected, title = \"Naturally Infected Donors\", \"adt_CoV2-RBD\")
+ggsave(\"./Figures/Infected_RBD.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(infected, title = \"Naturally Infected Donors\", \"adt_CoV2-S1\")
+ggsave(\"./Figures/Infected_S1.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(infected, title = \"Naturally Infected Donors\", \"adt_CoV2-S2\")
+ggsave(\"./Figures/Infected_S2.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(infected, title = \"Naturally Infected Donors\", \"adt_CoV2-N\")
+ggsave(\"./Figures/Infected_N.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(infected, title = \"Naturally Infected Donors\", \"adt_Orf3a\")
+ggsave(\"./Figures/Infected_Orf3a.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(infected, title = \"Naturally Infected Donors\", \"adt_Orf3b\")
+ggsave(\"./Figures/Infected_Orf3b.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(infected, title = \"Naturally Infected Donors\", \"adt_Env\")
+ggsave(\"./Figures/Infected_Env.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(infected, title = \"Naturally Infected Donors\", \"adt_Mem\")
+ggsave(\"./Figures/Infected_Mem.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(infected, title = \"Naturally Infected Donors\", \"adt_Orf7b\")
+ggsave(\"./Figures/Infected_Orf7b.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(infected, title = \"Naturally Infected Donors\", \"adt_Orf8\")
+ggsave(\"./Figures/Infected_Orf8.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(infected, title = \"Naturally Infected Donors\", \"adt_Orf9c\")
+ggsave(\"./Figures/Infected_Orf9c.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(infected, title = \"Naturally Infected Donors\", \"adt_NSP1\")
+ggsave(\"./Figures/Infected_NSP1.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(infected, title = \"Naturally Infected Donors\", \"adt_NSP10\")
+ggsave(\"./Figures/Infected_NSP10.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(infected, title = \"Naturally Infected Donors\", \"adt_NSP7\")
+ggsave(\"./Figures/Infected_NSP7.pdf\", height = 5, width = 10)
+
+```"

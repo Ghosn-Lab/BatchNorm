@@ -1,0 +1,166 @@
+"0","```r
+# Read adt matrices for PID4101
+raw.data <- Read10X(data.dir = paste0(dd, 'PID4101V/Raw/'), 
+                    gene.column = 2, unique.features = TRUE)
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4101V/Filtered'), 
+                   gene.column = 2, unique.features = TRUE)
+cells <- readRDS(\"./Data/expanded.cells70.rds\")
+cells <- cells[which(cells$Sample == \"PID4101V\"), ]
+# get ADT data for real cells
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+rm(fil.data)
+
+# get ADT data for background droplets
+adt.raw <- as.matrix(raw.data$`Antibody Capture`)
+rm(raw.data)
+
+# Remove \"true\" cell barcodes data from raw matrix to make \"true background\"
+cells.drop <- (colnames(adt.raw) %in% colnames(adt.fil))
+adt.raw <- adt.raw[, !cells.drop]
+# Remove empty ADT rows from background cells
+adt.raw <- adt.raw[which(rowSums(adt.raw) > 0),]
+raw.frame <- data.frame(cells = colnames(adt.raw), nUMI = colSums(adt.raw))
+fil.frame <- data.frame(cells = colnames(adt.fil), nUMI = colSums(adt.fil))
+highlight.frame <- data.frame(cells = cells$Barcode, nUMI = colSums(adt.fil[, cells$Barcode]))
+
+# Plot to determine cutoff value
+cutoff <- c(1150, 1850)
+
+p1 <- ggplot(raw.frame, aes(x = nUMI)) +
+      geom_histogram(binwidth = 25) +
+      geom_histogram(data = fil.frame, aes(fill = \"x\"), binwidth = 25) +
+      geom_histogram(data = highlight.frame, aes(fill = \"y\"), binwidth = 50) + 
+      scale_fill_manual(values = colors.use) +
+      coord_cartesian(xlim = c(0, 5000), ylim = c(0, 2500)) +
+      geom_vline(xintercept = cutoff, linetype = \"dashed\",
+                 color = \"#377EB8\", size = 1) +
+      theme(legend.position = \"none\") +
+      ggtitle(paste(\"PID4101V (Vaccinated) cells with shared CDR3 (70% match);\", nrow(cells), \"cells\"))
+p1
+ggsave(\"./Figures/PID4101V_Shared_CDR370_ADT_Hist.pdf\", p1, width = 7, height = 7)
+
+
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4101V/Filtered'), 
+                   gene.column = 2, unique.features = TRUE)
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+adt.fil <- adt.fil[which(rowSums(adt.fil) > 0),]
+adt.raw <- adt.raw[, which(colSums(adt.raw) > min(cutoff) & colSums(adt.raw) < max(cutoff))]
+adt.norm <- dsb::DSBNormalizeProtein(cell_protein_matrix = adt.fil, empty_drop_matrix = adt.raw)
+write.csv(adt.norm, paste0(dd, 'PID4101V/revised_adt_dsb.csv'))
+rm(list = c('fil.data', 'adt.fil', 'adt.norm', 'adt.raw'))
+
+
+
+
+################
+### PID4128V ###
+################
+# Read adt matrices for PID4128V
+raw.data <- Read10X(data.dir = paste0(dd, 'PID4128V/Raw/'), 
+                    gene.column = 2, unique.features = TRUE)
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4128V/Filtered'), 
+                   gene.column = 2, unique.features = TRUE)
+cells <- readRDS(\"./Data/expanded.cells70.rds\")
+cells <- cells[which(cells$Sample == \"PID4128V\"), ]
+# get ADT data for real cells
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+rm(fil.data)
+
+# get ADT data for background droplets
+adt.raw <- as.matrix(raw.data$`Antibody Capture`)
+rm(raw.data)
+
+# Remove \"true\" cell barcodes data from raw matrix to make \"true background\"
+cells.drop <- (colnames(adt.raw) %in% colnames(adt.fil))
+adt.raw <- adt.raw[, !cells.drop]
+# Remove empty ADT rows from background cells
+adt.raw <- adt.raw[which(rowSums(adt.raw) > 0),]
+raw.frame <- data.frame(cells = colnames(adt.raw), nUMI = colSums(adt.raw))
+fil.frame <- data.frame(cells = colnames(adt.fil), nUMI = colSums(adt.fil))
+highlight.frame <- data.frame(cells = cells$Barcode, nUMI = colSums(adt.fil[, cells$Barcode]))
+
+# Plot to determine cutoff value
+cutoff <- c(1150, 1750)
+
+p1 <- ggplot(raw.frame, aes(x = nUMI)) +
+      geom_histogram(binwidth = 25) +
+      geom_histogram(data = fil.frame, aes(fill = \"x\"), binwidth = 25) +
+      geom_histogram(data = highlight.frame, aes(fill = \"y\"), binwidth = 50) + 
+      scale_fill_manual(values = colors.use) +
+      coord_cartesian(xlim = c(0, 5000), ylim = c(0, 2500)) +
+      geom_vline(xintercept = cutoff, linetype = \"dashed\",
+                 color = \"#377EB8\", size = 1) +
+      theme(legend.position = \"none\") +
+      ggtitle(paste(\"PID4128V (Vaccinated) cells with shared CDR3 (70% match);\", nrow(cells), \"cells\"))
+p1
+ggsave(\"./Figures/PID4128V_Top_VJ_ADT_Hist.pdf\", p1, width = 7, height = 7)
+
+
+
+
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4128V/Filtered'), 
+                   gene.column = 2, unique.features = TRUE)
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+adt.fil <- adt.fil[which(rowSums(adt.fil) > 0),]
+adt.raw <- adt.raw[, which(colSums(adt.raw) > min(cutoff) & colSums(adt.raw) < max(cutoff))]
+adt.norm <- dsb::DSBNormalizeProtein(cell_protein_matrix = adt.fil, empty_drop_matrix = adt.raw)
+write.csv(adt.norm, paste0(dd, 'PID4128V/revised_adt_dsb.csv'))
+rm(list = c('fil.data', 'adt.fil', 'adt.norm', 'adt.raw'))
+
+
+
+################
+### PID4XXXV ###
+################
+# Read adt matrices for PID4XXXV
+raw.data <- Read10X(data.dir = paste0(dd, 'PID4XXXV/Raw/'), 
+                    gene.column = 2, unique.features = TRUE)
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4XXXV/Filtered'), 
+                   gene.column = 2, unique.features = TRUE)
+cells <- readRDS(\"./Data/expanded.cells70.rds\")
+cells <- cells[which(cells$Sample == \"PID4XXXV\"), ]
+# get ADT data for real cells
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+rm(fil.data)
+
+# get ADT data for background droplets
+adt.raw <- as.matrix(raw.data$`Antibody Capture`)
+rm(raw.data)
+
+# Remove \"true\" cell barcodes data from raw matrix to make \"true background\"
+cells.drop <- (colnames(adt.raw) %in% colnames(adt.fil))
+adt.raw <- adt.raw[, !cells.drop]
+# Remove empty ADT rows from background cells
+adt.raw <- adt.raw[which(rowSums(adt.raw) > 0),]
+raw.frame <- data.frame(cells = colnames(adt.raw), nUMI = colSums(adt.raw))
+fil.frame <- data.frame(cells = colnames(adt.fil), nUMI = colSums(adt.fil))
+highlight.frame <- data.frame(cells = cells$Barcode, nUMI = colSums(adt.fil[, cells$Barcode]))
+
+# Plot to determine cutoff value
+cutoff <- c(1250, 1900)
+
+p1 <- ggplot(raw.frame, aes(x = nUMI)) +
+      geom_histogram(binwidth = 25) +
+      geom_histogram(data = fil.frame, aes(fill = \"x\"), binwidth = 25) +
+      geom_histogram(data = highlight.frame, aes(fill = \"y\"), binwidth = 50) + 
+      scale_fill_manual(values = colors.use) +
+      coord_cartesian(xlim = c(0, 5000), ylim = c(0, 2500)) +
+      geom_vline(xintercept = cutoff, linetype = \"dashed\",
+                 color = \"#377EB8\", size = 1) +
+      theme(legend.position = \"none\") +
+      ggtitle(paste(\"PID4XXXV (Vaccinated) cells with shared CDR3 (70% match);\", nrow(cells), \"cells\"))
+p1
+ggsave(\"./Figures/PID4XXXV_Top_VJ_ADT_Hist.pdf\", p1, width = 7, height = 7)
+
+
+
+
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4XXXV/Filtered'), 
+                   gene.column = 2, unique.features = TRUE)
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+adt.fil <- adt.fil[which(rowSums(adt.fil) > 0),]
+adt.raw <- adt.raw[, which(colSums(adt.raw) > min(cutoff) & colSums(adt.raw) < max(cutoff))]
+adt.norm <- dsb::DSBNormalizeProtein(cell_protein_matrix = adt.fil, empty_drop_matrix = adt.raw)
+write.csv(adt.norm, paste0(dd, 'PID4XXXV/revised_adt_dsb.csv'))
+rm(list = c('fil.data', 'adt.fil', 'adt.norm', 'adt.raw'))
+```"

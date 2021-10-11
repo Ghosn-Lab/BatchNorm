@@ -1,0 +1,28 @@
+"0","```r
+# Percentage of cells with VDJ (B cells) AND contaminant cell markers should be the doublet percentage
+## Expecting doublet percentage 5-8%
+length(which(TotalPT@meta.data$dumpchannel > 0)) / nrow(TotalPT@meta.data)
+```"
+"1","[1] 0.05374325
+"
+"0","```r
+# 0.05374325 (~ 5.4% doublets of B cells with non-B cells)
+
+# Remove any cells expressing \"dump channel\" markers
+TotalPT <- subset(TotalPT, subset = `dumpchannel` == 0)
+# Save filtered object for later analyses
+saveRDS(TotalPT, \"./Workflow/Data/TotalPT_Filtered.rds\")
+
+
+# Select Plasma cells
+TotalPT$IGHSum <- colSums(TotalPT@assays$RNA@counts[grep(\"^IGH\", rownames(TotalPT@assays$RNA@counts)), ])
+
+VlnPlot(TotalPT, \"nCount_VDJ\") + scale_y_log10() + theme(legend.position = \"none\") + geom_hline(yintercept = 800)
+```"
+"1","Scale for 'y' is already present. Adding another scale for 'y', which will replace the existing scale.
+"
+"0","```r
+ggsave(\"./Workflow/Figures/TotalPT_nCountVDJ_Vln.pdf\")
+```"
+"1","Saving 7.29 x 4.51 in image
+"

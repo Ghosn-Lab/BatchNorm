@@ -1,0 +1,418 @@
+"0","```r
+TotalPT <- readRDS(\"./Data/TotalPT_VDJ.rds\")
+Idents(TotalPT) <- TotalPT[[\"orig.ident\"]]
+PID4101V <- subset(TotalPT, idents = \"PID4101V\")
+# Read in dsb-corrected ADT matrix
+dsb.mtx <- read.csv(paste0(dd, 'PID4101V/revised_adt_dsb.csv'), row.names = 1, header = T)
+# Sub DSB \"XXX.1\" cell IDs for Seurat \"XXX-1\" cell IDs
+colnames(dsb.mtx) <- paste0(\"PID4101V_\", gsub(pattern = \".1\", replacement = \"-1\", x = colnames(dsb.mtx)))
+PID4101V[['ADT']] <- CreateAssayObject(counts = dsb.mtx[, colnames(PID4101V)])
+
+PID4128V <- subset(TotalPT, idents = \"PID4128V\")
+# Read in dsb-corrected ADT matrix
+dsb.mtx <- read.csv(paste0(dd, 'PID4128V/revised_adt_dsb.csv'), row.names = 1, header = T)
+# Sub DSB \"XXX.1\" cell IDs for Seurat \"XXX-1\" cell IDs
+colnames(dsb.mtx) <- paste0(\"PID4128V_\", gsub(pattern = \".1\", replacement = \"-1\", x = colnames(dsb.mtx)))
+PID4128V[['ADT']] <- CreateAssayObject(counts = dsb.mtx[, colnames(PID4128V)])
+
+PID4XXXV <- subset(TotalPT, idents = \"PID4XXXV\")
+# Read in dsb-corrected ADT matrix
+dsb.mtx <- read.csv(paste0(dd, 'PID4XXXV/revised_adt_dsb.csv'), row.names = 1, header = T)
+# Sub DSB \"XXX.1\" cell IDs for Seurat \"XXX-1\" cell IDs
+colnames(dsb.mtx) <- paste0(\"PID4XXXV_\", gsub(pattern = \".1\", replacement = \"-1\", x = colnames(dsb.mtx)))
+PID4XXXV[['ADT']] <- CreateAssayObject(counts = dsb.mtx[, colnames(PID4XXXV)])
+rm(dsb.mtx)
+
+VaxPT <- merge(x = PID4101V, y = c(PID4128V, PID4XXXV), merge.data = T)
+
+plasma.cells <- WhichCells(VaxPT, expression = `nCount_VDJ` >= 500)
+VaxPT@meta.data$is.plasma.cell <- rep(F, nrow(VaxPT@meta.data))
+VaxPT@meta.data[plasma.cells, \"is.plasma.cell\"] <- T
+VaxPT@meta.data$Lineage_ID <- paste(VaxPT@meta.data$orig.ident, VaxPT@meta.data$Lineage_ID, sep = \"_\")
+
+VaxPT <- VaxPT %>%
+           FindVariableFeatures(selection.method = \"vst\", nfeatures = 2000) %>%
+           ScaleData() %>% 
+           RunPCA(npcs = 30)
+# Identify correct numbers of PCs
+ VaxPT.pca.test <- TestPCA(VaxPT)
+ VaxPT.pca.test[, 1:20]
+# 16 PCs with z > 1
+# rm(VaxPT.pca.test)
+
+VaxPT <- VaxPT %>% 
+         RunUMAP(reduction = \"pca\", dims = 1:16) %>%
+         FindNeighbors(reduction = \"pca\", dims = 1:16) %>%
+         FindClusters(resolution = .8)
+
+
+d <- as.data.frame(FetchData(object = VaxPT, 
+                   vars = c(\"adt_IgD-TotalSeqC\", \"adt_CD27-TotalSeqC\")))
+## Format colnames to match FeatureScatter syntax
+colnames(d) <- c(\"adt_IgD.TotalSeqC\", \"adt_CD27.TotalSeqC\")
+p <- FeatureScatter(VaxPT, \"adt_IgD-TotalSeqC\", \"adt_CD27-TotalSeqC\",
+                    cols = colors.use, plot.cor = F) +
+     geom_density2d(data = d, color = \"black\", size = 1) +
+     theme_gray() +
+     labs(x = \"adt_IgD (ADT)\", 
+          y = \"adt_CD27 (ADT)\") +
+     coord_cartesian(xlim = c(-2, 10), ylim = c(-2, 8))
+p
+ggsave(\"./Figures/B.cells_IgD_CD27.pdf\", p)
+
+
+d <- as.data.frame(FetchData(object = VaxPT, 
+                   vars = c(\"adt_IgD-TotalSeqC\", \"adt_CD27-TotalSeqC\")))
+## Format colnames to match FeatureScatter syntax
+colnames(d) <- c(\"adt_IgD.TotalSeqC\", \"adt_CD27.TotalSeqC\")
+p <- FeatureScatter(VaxPT, \"adt_IgD-TotalSeqC\", \"adt_CD27-TotalSeqC\",
+                    cols = colors.use, plot.cor = F) +
+     geom_density2d(data = d, color = \"black\", size = 1) +
+     theme_gray() +
+     labs(x = \"adt_IgD (ADT)\", 
+          y = \"adt_CD27 (ADT)\") +
+     coord_cartesian(xlim = c(-2, 10), ylim = c(-2, 8))
+p
+
+Idents(VaxPT) <- VaxPT[[\"orig.ident\"]]
+d <- as.data.frame(FetchData(object = PID4XXXV, 
+                   vars = c(\"CD79A\", \"nCount_VDJ\")))
+## Format colnames to match FeatureScatter syntax
+colnames(d) <- c(\"CD79A\", \"nCount_VDJ\")
+p <- FeatureScatter(PID4XXXV, \"CD79A\", \"nCount_VDJ\",
+                    cols = colors.use, plot.cor = F) +
+     geom_density2d(data = d, color = \"black\", size = 1) +
+     theme_gray() + ggcyto::scale_y_flowjo_biexp() + 
+     labs(x = \"CD79A (RNA)\", 
+          y = \"nCount_VDJ (UMI), biexponential\") +
+  geom_polygon(data = data.frame(CD79A = c(1, 4.5, 4.5, 0, 0), 
+                                 nCount_VDJ = c(500, 1000, 30000, 30000, 500)),
+               aes(colour=\"gate\"), fill=NA) + scale_color_manual(values = c(\"black\", colors.use))
+p
+
+# 199
+sum(PID4134@meta.data$nCount_VDJ > 500)
+
+
+order.clones <- order(PID4101V@meta.data[, \"Lineage_Freq\"], decreasing = T)
+CDR3.df <- PID4101V@meta.data[order.clones, c(\"Lineage_ID\", \"Lineage_Freq\", \"IGH_VJ\")]
+# Read filtered adt matrix for vaccinated patient PID4101
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4101V/Filtered'), 
+                    gene.column = 2, unique.features = TRUE)
+adt.fil.vax <- as.matrix(fil.data$`Antibody Capture`)
+colnames(adt.fil.vax) <- paste0('PID4101V_', colnames(adt.fil.vax))
+adt.fil.vax <- adt.fil.vax[c('CoV2_RBD_TotalSeqC', 'CoV2_S1_TotalSeqC', 'CoV2_S2_TotalSeqC'), ]
+
+
+# Extract lineage ID as a variable & specify lineage-specific
+CDR3.df$Lineage_ID <- paste0('PID4101V_', CDR3.df$Lineage_ID)
+
+
+
+lineageID <- unique(CDR3.df$Lineage_ID)[5]
+lineage.cells <- rownames(CDR3.df[which(CDR3.df$Lineage_ID == lineageID), ])
+lineage.df <- adt.fil.vax[, lineage.cells]
+if(length(unique(CDR3.df$IGH_VJ)) == 1){
+  print(\"Single Lineage\")
+}
+# get ADT data for real cells
+
+adt.vax.frame <- data.frame(cells = colnames(adt.fil.vax), nUMI = colSums(adt.fil.vax))
+lineage.frame <- data.frame(cells = colnames(lineage.df), nUMI = colSums(lineage.df))
+
+# Plot to determine enriched ADT+ clones
+
+p1 <- ggplot(adt.vax.frame, aes(x = nUMI)) +
+      geom_histogram(binwidth = 1) +
+      geom_point(data = lineage.frame, aes(x = nUMI, y = 250, color = \"x\"),
+                 position = position_jitter(height = 200)) + 
+      scale_color_manual(values = colors.use[2]) +
+      coord_cartesian(xlim = c(0, 100), ylim = c(0, 1000)) +
+      theme(legend.position = \"none\") +
+      ggtitle(paste(\"Vaccinated PT, clone ID =\", lineageID, \";\", ncol(lineage.df), \"cells\n\", unique(CDR3.df$IGH_VJ))) +
+      xlab(\"Sum CoV2-S1 / S2 / RBD Antigen\") + ylab(\"Frequency\")
+p1
+ggsave(paste0(\"./Figures/Clonal_ADT/Lineage_\", lineageID,\"_\", ncol(lineage.df), \"Cells.pdf\"), p1,
+       width = 7.29, height = 4.51)
+
+## No enriched clones in PID4101V
+
+
+
+
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4128V/Filtered'), 
+                    gene.column = 2, unique.features = TRUE)
+adt.fil.PID4128V <- as.matrix(fil.data$`Antibody Capture`)
+colnames(adt.fil.PID4128V) <- paste0('PID4128V_', colnames(adt.fil.PID4128V))
+
+order.clones <- order(PID4128V@meta.data[, \"Lineage_Freq\"], decreasing = T)
+CDR3.df <- PID4128V@meta.data[order.clones, c(\"Lineage_ID\", \"Lineage_Freq\", \"IGH_VJ\")]
+# Read filtered adt matrix for vaccinated patient PID4101
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4128V/Filtered'), 
+                    gene.column = 2, unique.features = TRUE)
+adt.fil.vax <- as.matrix(fil.data$`Antibody Capture`)
+colnames(adt.fil.vax) <- paste0('PID4128V_', colnames(adt.fil.vax))
+adt.fil.vax <- adt.fil.vax[c('CoV2_RBD_TotalSeqC', 'CoV2_S1_TotalSeqC', 'CoV2_S2_TotalSeqC'), ]
+
+
+# Extract lineage ID as a variable & specify lineage-specific
+CDR3.df$Lineage_ID <- paste0('PID4128V_', CDR3.df$Lineage_ID)
+
+
+
+lineageID <- unique(CDR3.df$Lineage_ID)[6]
+lineage.cells <- rownames(CDR3.df[which(CDR3.df$Lineage_ID == lineageID), ])
+VJ.gene <- CDR3.df[which(CDR3.df$Lineage_ID == lineageID), \"IGH_VJ\"]
+lineage.df <- adt.fil.vax[, lineage.cells]
+# get ADT data for real cells
+
+adt.vax.frame <- data.frame(cells = colnames(adt.fil.vax), nUMI = colSums(adt.fil.vax))
+lineage.frame <- data.frame(cells = colnames(lineage.df), nUMI = colSums(lineage.df))
+
+# Plot to determine enriched ADT+ clones
+
+p1 <- ggplot(adt.vax.frame, aes(x = nUMI)) +
+      geom_histogram(binwidth = 1) +
+      geom_point(data = lineage.frame, aes(x = nUMI, y = 250, color = \"x\"),
+                 position = position_jitter(height = 200)) + 
+      scale_color_manual(values = colors.use[2]) +
+      coord_cartesian(xlim = c(0, 100), ylim = c(0, 1000)) +
+      theme(legend.position = \"none\") +
+      ggtitle(paste(\"Vaccinated PT, clone ID =\", lineageID, \";\", ncol(lineage.df), \"cells\n\", unique(VJ.gene))) +
+      xlab(\"Sum CoV2-S1 / S2 / RBD Antigen\") + ylab(\"Frequency\")
+p1
+ggsave(paste0(\"./Figures/Clonal_ADT/Lineage_\", lineageID,\"_\", ncol(lineage.df), \"Cells.pdf\"), p1,
+       width = 7.29, height = 4.51)
+
+
+
+
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4XXXV/Filtered'), 
+                    gene.column = 2, unique.features = TRUE)
+adt.fil.PID4XXXV <- as.matrix(fil.data$`Antibody Capture`)
+colnames(adt.fil.PID4XXXV) <- paste0('PID4XXXV_', colnames(adt.fil.PID4XXXV))
+order.clones <- order(PID4XXXV@meta.data[, \"Lineage_Freq\"], decreasing = T)
+CDR3.df <- PID4XXXV@meta.data[order.clones, c(\"Lineage_ID\", \"Lineage_Freq\", \"IGH_VJ\")]
+# Read filtered adt matrix for vaccinated patient PID4101
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4XXXV/Filtered'), 
+                    gene.column = 2, unique.features = TRUE)
+adt.fil.vax <- as.matrix(fil.data$`Antibody Capture`)
+colnames(adt.fil.vax) <- paste0('PID4XXXV_', colnames(adt.fil.vax))
+adt.fil.vax <- adt.fil.vax[c('CoV2_RBD_TotalSeqC', 'CoV2_S1_TotalSeqC', 'CoV2_S2_TotalSeqC'), ]
+
+
+# Extract lineage ID as a variable & specify lineage-specific
+CDR3.df$Lineage_ID <- paste0('PID4XXXV_', CDR3.df$Lineage_ID)
+
+
+
+lineageID <- unique(CDR3.df$Lineage_ID)[12]
+lineage.cells <- rownames(CDR3.df[which(CDR3.df$Lineage_ID == lineageID), ])
+VJ.gene <- CDR3.df[which(CDR3.df$Lineage_ID == lineageID), \"IGH_VJ\"]
+lineage.df <- adt.fil.vax[, lineage.cells]
+# get ADT data for real cells
+
+adt.vax.frame <- data.frame(cells = colnames(adt.fil.vax), nUMI = colSums(adt.fil.vax))
+lineage.frame <- data.frame(cells = colnames(lineage.df), nUMI = colSums(lineage.df))
+
+# Plot to determine enriched ADT+ clones
+
+p1 <- ggplot(adt.vax.frame, aes(x = nUMI)) +
+      geom_histogram(binwidth = 1) +
+      geom_point(data = lineage.frame, aes(x = nUMI, y = 250, color = \"x\"),
+                 position = position_jitter(height = 200)) + 
+      scale_color_manual(values = colors.use[2]) +
+      coord_cartesian(xlim = c(0, 100), ylim = c(0, 1000)) +
+      theme(legend.position = \"none\") +
+      ggtitle(paste(\"Vaccinated PT, clone ID =\", lineageID, \";\", ncol(lineage.df), \"cells\n\", unique(VJ.gene))) +
+      xlab(\"Sum CoV2-S1 / S2 / RBD Antigen\") + ylab(\"Frequency\")
+p1
+ggsave(paste0(\"./Figures/Clonal_ADT/Lineage_\", lineageID,\"_\", ncol(lineage.df), \"Cells.pdf\"), p1,
+       width = 7.29, height = 4.51)
+
+
+
+
+
+
+TotalPT <- readRDS(\"./Data/TotalPT_VDJ.rds\")
+Idents(TotalPT) <- TotalPT[[\"orig.ident\"]]
+PID4130 <- subset(TotalPT, idents = \"PID4130\")
+order.clones <- order(PID4130@meta.data[, \"Lineage_Freq\"], decreasing = T)
+CDR3.df <- PID4130@meta.data[order.clones, c(\"Lineage_ID\", \"Lineage_Freq\", \"IGH_VJ\")]
+# Read filtered adt matrix for vaccinated patient PID4101
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4130/Filtered'), 
+                    gene.column = 2, unique.features = TRUE)
+adt.fil.ag <- as.matrix(fil.data$`Antibody Capture`)
+colnames(adt.fil.ag) <- paste0('PID4130_', colnames(adt.fil.ag))
+adt.fil.ag <- adt.fil.ag[c('CoV2-RBD_TotalSeqC', 'CoV2-S1_TotalSeqC', 'CoV2-S2_TotalSeqC', 'CoV2-N_TotalSeqC'), ]
+
+
+# Extract lineage ID as a variable & specify lineage-specific
+CDR3.df$Lineage_ID <- paste0('PID4130_', CDR3.df$Lineage_ID)
+
+
+
+lineageID <- unique(CDR3.df$Lineage_ID)[9]
+lineage.cells <- rownames(CDR3.df[which(CDR3.df$Lineage_ID == lineageID), ])
+VJ.gene <- CDR3.df[which(CDR3.df$Lineage_ID == lineageID), \"IGH_VJ\"]
+lineage.df <- adt.fil.ag[, lineage.cells]
+# get ADT data for real cells
+
+adt.ag.frame <- data.frame(cells = colnames(adt.fil.ag), nUMI = colSums(adt.fil.ag))
+lineage.frame <- data.frame(cells = colnames(lineage.df), nUMI = colSums(lineage.df))
+
+# Plot to determine enriched ADT+ clones
+
+p1 <- ggplot(adt.ag.frame, aes(x = nUMI)) +
+      geom_histogram(binwidth = 1) +
+      geom_point(data = lineage.frame, aes(x = nUMI, y = 100, color = \"x\"),
+                 position = position_jitter(height = 50)) + 
+      scale_color_manual(values = colors.use[2]) +
+      coord_cartesian(xlim = c(0, 100), ylim = c(0, 500)) +
+      theme(legend.position = \"none\") +
+      ggtitle(paste(\"Infected PT, clone ID =\", lineageID, \";\", ncol(lineage.df), \"cells\n\", unique(VJ.gene))) +
+      xlab(\"Sum CoV2-S1 / S2 / RBD / N Antigen\") + ylab(\"Frequency\")
+p1
+ggsave(paste0(\"./Figures/Clonal_ADT/Lineage_\", lineageID,\"_\", ncol(lineage.df), \"Cells.pdf\"), p1,
+       width = 7.29, height = 4.51)
+
+
+
+
+PID4132 <- subset(TotalPT, idents = \"PID4132\")
+order.clones <- order(PID4132@meta.data[, \"Lineage_Freq\"], decreasing = T)
+CDR3.df <- PID4132@meta.data[order.clones, c(\"Lineage_ID\", \"Lineage_Freq\", \"IGH_VJ\")]
+# Read filtered adt matrix for vaccinated patient PID4101
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4132/Filtered'), 
+                    gene.column = 2, unique.features = TRUE)
+adt.fil.ag <- as.matrix(fil.data$`Antibody Capture`)
+colnames(adt.fil.ag) <- paste0('PID4132_', colnames(adt.fil.ag))
+adt.fil.ag <- adt.fil.ag[c('CoV2-RBD_TotalSeqC', 'CoV2-S1_TotalSeqC', 'CoV2-S2_TotalSeqC', 'CoV2-N_TotalSeqC'), ]
+
+
+# Extract lineage ID as a variable & specify lineage-specific
+CDR3.df$Lineage_ID <- paste0('PID4132_', CDR3.df$Lineage_ID)
+
+
+
+lineageID <- unique(CDR3.df$Lineage_ID)[12]
+lineage.cells <- rownames(CDR3.df[which(CDR3.df$Lineage_ID == lineageID), ])
+VJ.gene <- CDR3.df[which(CDR3.df$Lineage_ID == lineageID), \"IGH_VJ\"]
+lineage.df <- adt.fil.ag[, lineage.cells]
+# get ADT data for real cells
+
+adt.ag.frame <- data.frame(cells = colnames(adt.fil.ag), nUMI = colSums(adt.fil.ag))
+lineage.frame <- data.frame(cells = colnames(lineage.df), nUMI = colSums(lineage.df))
+
+# Plot to determine enriched ADT+ clones
+
+p1 <- ggplot(adt.ag.frame, aes(x = nUMI)) +
+      geom_histogram(binwidth = 1) +
+      geom_point(data = lineage.frame, aes(x = nUMI, y = 100, color = \"x\"),
+                 position = position_jitter(height = 50)) + 
+      scale_color_manual(values = colors.use[2]) +
+      coord_cartesian(xlim = c(0, 100), ylim = c(0, 1000)) +
+      theme(legend.position = \"none\") +
+      ggtitle(paste(\"Infected PT, clone ID =\", lineageID, \";\", ncol(lineage.df), \"cells\n\", unique(VJ.gene))) +
+      xlab(\"Sum CoV2-S1 / S2 / RBD / N Antigen\") + ylab(\"Frequency\")
+p1
+ggsave(paste0(\"./Figures/Clonal_ADT/Lineage_\", lineageID,\"_\", ncol(lineage.df), \"Cells.pdf\"), p1,
+       width = 7.29, height = 4.51)
+
+
+
+
+
+
+
+
+PID4134 <- subset(TotalPT, idents = \"PID4134\")
+order.clones <- order(PID4134@meta.data[, \"Lineage_Freq\"], decreasing = T)
+CDR3.df <- PID4134@meta.data[order.clones, c(\"Lineage_ID\", \"Lineage_Freq\", \"IGH_VJ\")]
+# Read filtered adt matrix for vaccinated patient PID4134
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4134/Filtered'), 
+                    gene.column = 2, unique.features = TRUE)
+adt.fil.ag <- as.matrix(fil.data$`Antibody Capture`)
+colnames(adt.fil.ag) <- paste0('PID4134_', colnames(adt.fil.ag))
+adt.fil.ag <- adt.fil.ag[c('CoV2-RBD_TotalSeqC', 'CoV2-S1_TotalSeqC', 'CoV2-S2_TotalSeqC', 'CoV2-N_TotalSeqC'), ]
+
+
+# Extract lineage ID as a variable & specify lineage-specific
+CDR3.df$Lineage_ID <- paste0('PID4134_', CDR3.df$Lineage_ID)
+
+
+
+lineageID <- unique(CDR3.df$Lineage_ID)[17]
+lineage.cells <- rownames(CDR3.df[which(CDR3.df$Lineage_ID == lineageID), ])
+VJ.gene <- CDR3.df[which(CDR3.df$Lineage_ID == lineageID), \"IGH_VJ\"]
+lineage.df <- adt.fil.ag[, lineage.cells]
+# get ADT data for real cells
+
+adt.ag.frame <- data.frame(cells = colnames(adt.fil.ag), nUMI = colSums(adt.fil.ag))
+lineage.frame <- data.frame(cells = colnames(lineage.df), nUMI = colSums(lineage.df))
+
+# Plot to determine enriched ADT+ clones
+
+p1 <- ggplot(adt.ag.frame, aes(x = nUMI)) +
+      geom_histogram(binwidth = 1) +
+      geom_point(data = lineage.frame, aes(x = nUMI, y = 100, color = \"x\"),
+                 position = position_jitter(height = 50)) + 
+      scale_color_manual(values = colors.use[2]) +
+      coord_cartesian(xlim = c(0, 100), ylim = c(0, 500)) +
+      theme(legend.position = \"none\") +
+      ggtitle(paste(\"Infected PT, clone ID =\", lineageID, \";\", ncol(lineage.df), \"cells\n\", unique(VJ.gene))) +
+      xlab(\"Sum CoV2-S1 / S2 / RBD / N Antigen\") + ylab(\"Frequency\")
+p1
+ggsave(paste0(\"./Figures/Clonal_ADT/Lineage_\", lineageID,\"_\", ncol(lineage.df), \"Cells.pdf\"), p1,
+       width = 7.29, height = 4.51)
+
+
+
+
+TotalPT@meta.data$Vaxx <- \"Infected\"
+TotalPT@meta.data[which(TotalPT@meta.data$orig.ident == \"PID4101\"), \"Vaxx\"] <- 'Negative Control'
+TotalPT@meta.data$Vaxx <- factor(TotalPT@meta.data$Vaxx,
+                                 levels = c(\"Negative Control\", \"Infected\", \"Vaccinated\"))
+
+UMAPPlot(TotalPT, group.by = \"Vaxx\", cols = colors.use) + ggtitle(\"Infection Status\")
+ggsave(\"./Figures/Minus27_Infection_Status_UMAP.pdf\")
+
+TotalPT@meta.data$Lineage_ID <- paste(TotalPT@meta.data$orig.ident, TotalPT@meta.data$Lineage_ID, sep = \"_\")
+Idents(TotalPT) <- TotalPT[[\"Lineage_ID\"]]
+
+
+cells.highlight <- rownames(TotalPT[[]])[which(TotalPT@meta.data[, \"Lineage_ID\"] == \"PID4XXXV_546\")]
+
+
+
+TotalPT@meta.data$is.plasma.cell <- rep(F, nrow(TotalPT@meta.data))
+TotalPT@meta.data[plasma.cells, \"is.plasma.cell\"] <- T
+
+Idents(TotalPT) <- TotalPT[[\"orig.ident\"]]
+TotalPT <- subset(TotalPT, idents = \"PID4127\", invert = T)
+
+TotalPT <- TotalPT %>%
+           FindVariableFeatures(selection.method = \"vst\", nfeatures = 2000) %>%
+           ScaleData() %>% 
+           RunPCA(npcs = 30)
+# Identify correct numbers of PCs
+# TotalPT.pca.test <- TestPCA(TotalPT)
+# TotalPT.pca.test[, 1:20]
+# 14 PCs with z > 1
+# rm(TotalPT.pca.test)
+
+TotalPT <- TotalPT %>% 
+           RunUMAP(reduction = \"pca\", dims = 1:14) %>%
+           FindNeighbors(reduction = \"pca\", dims = 1:14) %>%
+           FindClusters(resolution = .8)
+
+UMAPPlot(TotalPT, cells.highlight = cells.highlight)
+ggsave(\"./Figures/Ag_Specific_PID4XXXV_546_IgA1.pdf\")
+unique(TotalPT@meta.data[cells.highlight, \"Isotype\"])
+
+
+
+
+
+```"

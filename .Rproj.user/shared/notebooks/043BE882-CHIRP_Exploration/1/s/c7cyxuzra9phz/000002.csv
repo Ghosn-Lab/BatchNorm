@@ -1,0 +1,74 @@
+"0","```r
+
+B.cells <- subset(TotalPT, `nCount_VDJ` < 500)
+B.cells@meta.data$no.VDJ <- rep(\"no.VDJ\", nrow(B.cells@meta.data))
+B.cells@meta.data[WhichCells(B.cells, expression = `nCount_VDJ` > 0), \"no.VDJ\"] <- \"yes.VDJ\"
+
+GetLISI <- function(object, nSamples) {
+  coords <- object@reductions$umap@cell.embeddings
+  sample_cats <- data.frame(\"no.VDJ\" = object@meta.data$no.VDJ)
+  res <- lisi::compute_lisi(coords, sample_cats, c('no.VDJ'))
+  sample.lisi <- median(res$no.VDJ)
+  adjusted.lisi <- (sample.lisi - 1) / (nSamples - 1)
+  return(adjusted.lisi)
+}
+GetLISI(object = B.cells, nSamples = 2)
+# iLISI = 0.5319035 (0.4680965)
+
+FeaturePlot(TotalPT, \"Lineage_Freq\", min.cutoff = 1)
+ggsave(\"./Figures/Drop27_TotalPT_Lineage_Freq_UMAP.pdf\")
+
+FeaturePlot(TotalPT, \"Lineage_Freq\", min.cutoff = 1, max.cutoff = 2) + theme(legend.position = \"none\")
+ggsave(\"./Figures/Drop27_TotalPT_Lineage_Freq_0.85_UMAP.pdf\")
+
+
+FeaturePlot(TotalPT, \"IGH_V_freq\")
+ggsave(\"./Figures/Drop27_TotalPT_VGene_Freq_UMAP.pdf\")
+
+FeaturePlot(TotalPT, \"IGH_VJ_freq\")
+ggsave(\"./Figures/Drop27_TotalPT_VJGene_Freq_UMAP.pdf\")
+
+max(TotalPT[[\"IGH_V_freq\"]])
+# 9.968622
+
+V.cells <- WhichCells(TotalPT, expression = `IGH_V_freq` > 9)
+unique(TotalPT@meta.data[V.cells, \"IGH_V\"])
+# ighv3-30     ighv3-23
+
+Idents(TotalPT) <- TotalPT[[\"IGH_V\"]]
+DimPlot(TotalPT, cells.highlight = WhichCells(TotalPT, expression = `IGH_V` == \"ighv3-30\"))
+ggsave(\"./Figures/Drop27_TotalPT_MostCommon_V_ighv3-30_UMAP.pdf\")
+mean(unique(TotalPT@meta.data[WhichCells(TotalPT, expression = `IGH_V` == \"ighv3-30\"), \"IGH_V_freq\"]))
+unique(TotalPT@meta.data[WhichCells(TotalPT, expression = `IGH_V` == \"ighv3-30\" & `orig.ident` == \"PID4101\"), \"IGH_V_freq\"])
+# average frequency of IGHV 3-30 = 4.736359
+# 5.469846 percent of PID4101
+
+
+DimPlot(TotalPT, cells.highlight = WhichCells(TotalPT, expression = `IGH_V` == \"ighv3-23\"))
+ggsave(\"./Figures/Drop27_TotalPT_MostCommon_V_ighv3-23_UMAP.pdf\")
+mean(unique(TotalPT@meta.data[WhichCells(TotalPT, expression = `IGH_V` == \"ighv3-23\"), \"IGH_V_freq\"]))
+unique(TotalPT@meta.data[WhichCells(TotalPT, expression = `IGH_V` == \"ighv3-23\" & `orig.ident` == \"PID4101\"), \"IGH_V_freq\"])
+# average frequency of IGHV 3-23 = 8.326977
+# 8.875977 percent of PID4101
+
+max(TotalPT[[\"IGH_VJ_freq\"]])
+# 5.902004
+
+VJ.cells <- WhichCells(TotalPT, expression = `IGH_VJ_freq` > 5)
+unique(TotalPT@meta.data[VJ.cells, \"IGH_VJ\"])
+
+Idents(TotalPT) <- TotalPT[[\"IGH_VJ\"]]
+DimPlot(TotalPT, cells.highlight = WhichCells(TotalPT, expression = `IGH_VJ_freq` > 5))
+ggsave(\"./Figures/Drop27_TotalPT_MostCommon_VJ_ighj4_ighv3-23_UMAP.pdf\")
+mean(unique(TotalPT@meta.data[WhichCells(TotalPT, expression = `IGH_VJ` == \"ighj4_ighv3-23\"), \"IGH_VJ_freq\"]))
+unique(TotalPT@meta.data[WhichCells(TotalPT, expression = `IGH_VJ` == \"ighj4_ighv3-23\" & `orig.ident` == \"PID4101\"), \"IGH_VJ_freq\"])
+# average frequency of IGHV3-23 + IGHJ4 = 4.849692
+# 4.98898 percent in PID4101
+
+DimPlot(TotalPT, group.by = \"sex\")
+DimPlot(TotalPT, group.by = \"orig.ident\")
+
+VlnPlot(TotalPT, \"Lineage_Freq\", group.by = \"orig.ident\")
+VlnPlot(TotalPT, \"nCount_VDJ\", group.by = \"orig.ident\")
+VlnPlot(TotalPT, \"IGH_V_freq\", group.by = \"orig.ident\")
+```"

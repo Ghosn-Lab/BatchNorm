@@ -1,0 +1,10 @@
+"0","```r
+mtx.list <- Read10X(data.dir = paste0(dd, '5GEX_PBMC3_46yoM_H1/Batch2/Filtered'),
+                     gene.column = 2, unique.features = TRUE)
+
+```"
+"1","10X data contains more than one type and is being returned as a list containing matrices of each type.
+"
+"0","```r
+PBMC.4B <- CreateSeuratObject(counts = mtx.list$`Gene Expression`)
+```"

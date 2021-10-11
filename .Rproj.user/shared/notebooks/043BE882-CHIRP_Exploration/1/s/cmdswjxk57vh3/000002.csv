@@ -1,0 +1,110 @@
+"0","```r
+#########################################
+### Establish Seurat Objects with VDJ ###
+#########################################
+# Read in all patients (TotalPT) seurat object
+# already mitofiltered & RNA lognormalized
+TotalPT <- readRDS(\"./Data/TotalPT.rds\")
+
+addVDJ <- function(obj = NULL, SampleID = NULL){
+  # Read in single-sample VDJ matrix with lineages & filter to IGH-only
+  VDJt <- read.csv(paste0(dd, SampleID, \"/VDJ/IMGT/SuPERR-Seq_processed/lineage_processed_data.csv\"))
+  crVDJ <- read.csv(paste0(dd, SampleID, \"/VDJ/filtered_contig_annotations.csv\"))
+  crVDJ.umi <- tapply(crVDJ$umis, crVDJ$barcode, FUN = sum)
+  rm(crVDJ)
+  
+  # Correcting VDJ matrix barcodes to Seurat format
+  VDJt$indexed_barcode <- rearrange.BC(VDJt$indexed_barcode)
+  VDJt$indexed_barcode <- paste(SampleID, VDJt$indexed_barcode, sep = c(\"_\"))
+  VDJt$indexed_barcode <- paste(VDJt$indexed_barcode, \"1\", sep = c(\"-\"))
+  cells <- intersect(VDJt$indexed_barcode, colnames(obj))
+  
+  # Correcting CellRanger VDJ names
+  names(crVDJ.umi) <- paste(SampleID, names(crVDJ.umi), sep = c(\"_\"))
+  crVDJ.umi <- crVDJ.umi[cells]
+  
+  VDJ <- VDJt[which(VDJt$chain_type == \"igh\"), ]
+  rownames(VDJ) <- VDJ$indexed_barcode
+  VDJ.l.umi <- VDJt[which(VDJt$chain_type == \"igl\"), c(\"indexed_barcode\", \"umis\")]
+  rownames(VDJ.l.umi) <- VDJ.l.umi$indexed_barcode
+  rm(VDJt)
+  
+  # Establishing VDJ UMI count data (for plasma cell identification)
+  obj@meta.data$nCount_VDJ <- 0
+  UMI.mtx <- cbind(VDJ[cells, \"umis\"], VDJ.l.umi[cells, \"umis\"])
+  row.names(UMI.mtx) <- cells
+  UMI.mtx[is.na(UMI.mtx)] <- 0 
+  obj@meta.data[cells, \"nCount_VDJ\"] <- crVDJ.umi[cells]
+  obj@meta.data[is.na(obj@meta.data$nCount_VDJ), \"nCount_VDJ\"] <- 0
+  VlnPlot(obj, \"nCount_VDJ\")
+  rm(list = c('UMI.mtx', 'VDJ.l.umi'))
+  # Transferring clonal lineage ID (from above, 85% CDR3 aa match)
+  obj@meta.data$Lineage_ID <- NA
+  obj@meta.data[cells, \"Lineage_ID\"] <- VDJ[cells, \"lineage_id\"]
+  # Counting lineage frequency (finding shared lineage IDs)
+  lineage_freq <- plyr::count(obj@meta.data$Lineage_ID)
+  ## re-order frequency to match Seurat cell barcodes & add as metadata
+  lineage_freq <- lineage_freq[match(obj@meta.data$Lineage_ID, lineage_freq$x), \"freq\"]
+  obj@meta.data$Lineage_Freq <- lineage_freq
+  rm(lineage_freq)
+  ## replace \"NA lineage\" cells with 0-count frequency (otherwise \"NA\" is the most frequent lineage)
+  obj@meta.data[which(is.na(obj@meta.data$Lineage_ID)), \"Lineage_Freq\"] <- 0
+  
+  # Add IGH V-gene annotation
+  obj@meta.data$IGH_V <- NA
+  obj@meta.data[cells, \"IGH_V\"] <- VDJ[cells, \"v_gene\"]
+  # Add IGH J-gene annotation
+  obj@meta.data$IGH_J <- NA
+  obj@meta.data[cells, \"IGH_J\"] <- VDJ[cells, \"j_gene\"]
+    # Add IGH VJ-gene annotation
+  obj@meta.data$IGH_VJ <- NA
+  obj@meta.data[cells, \"IGH_VJ\"] <- paste(VDJ[cells, \"j_gene\"], VDJ[cells, \"v_gene\"], sep = \"_\")
+  
+  # Get V-gene frequency
+  V_freq <- plyr::count(obj@meta.data$IGH_V)
+  V_freq$freq <- (V_freq$freq/nrow(obj[[]]))*100
+  ## re-order frequency to match Seurat cell barcodes & add as metadata
+  V_freq <- V_freq[match(obj@meta.data$IGH_V, V_freq$x), \"freq\"]
+  obj@meta.data$IGH_V_freq <- V_freq
+  rm(V_freq)
+  ## replace \"NA V-gene\" cells with 0-count frequency (otherwise \"NA\" is the most frequent V-gene)
+  obj@meta.data[which(is.na(obj@meta.data$IGH_V)), \"IGH_V_freq\"] <- 0
+  
+  # Get VJ-gene frequency
+  VJ_freq <- plyr::count(obj@meta.data$IGH_VJ)
+  VJ_freq$freq <- (VJ_freq$freq/nrow(obj[[]]))*100
+  ## re-order frequency to match Seurat cell barcodes & add as metadata
+  VJ_freq <- VJ_freq[match(obj@meta.data$IGH_VJ, VJ_freq$x), \"freq\"]
+  obj@meta.data$IGH_VJ_freq <- VJ_freq
+  rm(VJ_freq)
+  ## replace \"NA V-gene\" cells with 0-count frequency (otherwise \"NA\" is the most frequent V-gene)
+  obj@meta.data[which(is.na(obj@meta.data$IGH_J)), \"IGH_VJ_freq\"] <- 0
+  
+  # Add isotype
+  obj@meta.data$Isotype <- NA
+  obj@meta.data[cells, \"Isotype\"] <- VDJ[cells, \"isotype\"]
+  return(obj)
+}
+
+Idents(TotalPT) <- TotalPT[[\"orig.ident\"]]
+PID4101 <- subset(TotalPT, idents = \"PID4101\")
+PID4101 <- addVDJ(obj = PID4101, SampleID = \"PID4101\")
+PID4127 <- subset(TotalPT, idents = \"PID4127\")
+PID4127 <- addVDJ(obj = PID4127, SampleID = \"PID4127\")
+PID4130 <- subset(TotalPT, idents = \"PID4130\")
+PID4130 <- addVDJ(obj = PID4130, SampleID = \"PID4130\")
+PID4132 <- subset(TotalPT, idents = \"PID4132\")
+PID4132 <- addVDJ(obj = PID4132, SampleID = \"PID4132\")
+PID4134 <- subset(TotalPT, idents = \"PID4134\")
+PID4134 <- addVDJ(obj = PID4134, SampleID = \"PID4134\")
+PID4101V <- subset(TotalPT, idents = \"PID4101V\")
+PID4101V <- addVDJ(obj = PID4101V, SampleID = \"PID4101V\")
+PID4128V <- subset(TotalPT, idents = \"PID4128V\")
+PID4128V <- addVDJ(obj = PID4128V, SampleID = \"PID4128V\")
+PID4XXXV <- subset(TotalPT, idents = \"PID4XXXV\")
+PID4XXXV <- addVDJ(obj = PID4XXXV, SampleID = \"PID4XXXV\")
+
+TotalPT <- merge(x = PID4101, y = c(PID4127, PID4130, PID4132, PID4134, PID4101V, PID4128V, PID4XXXV),
+                 merge.data = T)
+saveRDS(TotalPT, \"./Data/TotalPT_VDJ.rds\")
+```"

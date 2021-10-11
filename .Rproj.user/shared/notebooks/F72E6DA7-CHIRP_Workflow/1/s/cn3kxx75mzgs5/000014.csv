@@ -1,0 +1,9 @@
+"0","```r
+PBMC_PCells <- subset(TotalPBMC, subset = nCount_VDJ > 1000)
+# 5 Plasma cells / 568 B cells
+PBMC_BCells <- subset(TotalPBMC, subset = nCount_VDJ > 1000, invert = T)
+# 563 B cells
+
+saveRDS(PBMC_BCells, \"./Workflow/Data/TotalPBMC_BCells.rds\")
+saveRDS(PBMC_PCells, \"./Workflow/Data/TotalPBMC_PCells.rds\")
+```"

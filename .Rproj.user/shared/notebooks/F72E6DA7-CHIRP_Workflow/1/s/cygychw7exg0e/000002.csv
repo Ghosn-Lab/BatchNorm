@@ -1,0 +1,671 @@
+"0","```r
+# Set data directory
+dd <- \"~/OneDrive - Emory University/Ghosn_Lab/scRNA_Data/UCSF/\"
+
+##############
+## PID4101 ###
+############## PID4101, Visit 1, COVID Negative Control
+
+mtx.list <- Read10X(data.dir = paste0(dd, 'PID4101/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+```"
+"1","10X data contains more than one type and is being returned as a list containing matrices of each type.
+"
+"0","```r
+PID4101 <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = \"PID4101\")
+```"
+"1","Feature names cannot have underscores ('_'), replacing with dashes ('-')
+"
+"0","```r
+PID4101 <- RenameCells(PID4101, add.cell.id = \"PID4101\")
+PID4101[[\"percent.mito\"]] <- PercentageFeatureSet(PID4101, pattern = \"^MT-\")
+ldf_PID4101 <- assign_lineages(data = paste0(dd, \"PID4101/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4101.csv\"), 
+                           pct_homology = 0.85, return_df = T)
+```"
+"1","
+── Column specification ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+cols(
+  .default = col_double(),
+  indexed_contig_id = col_character(),
+  indexed_barcode = col_character(),
+  index = col_character(),
+  seq = col_character(),
+  chain_type = col_character(),
+  isotype = col_character(),
+  c_gene = col_character(),
+  orientation = col_character(),
+  v_domain_functionality = col_character(),
+  v_gene = col_character(),
+  primary_v_allele = col_character(),
+  multiple_v_alleles_possible = col_logical(),
+  v_region_identity_nt = col_character(),
+  j_gene = col_character(),
+  primary_j_allele = col_character(),
+  multiple_j_alleles_possible = col_logical(),
+  j_region_identity_nt = col_character(),
+  nt_vdj = col_character(),
+  nt_vj = col_character(),
+  nt_v = col_character()
+  # ... with 24 more columns
+)
+ℹ Use `spec()` for the full column specifications.
+"
+"1","[1] \"100 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"200 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"300 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"400 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"500 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"600 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"700 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"800 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"900 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"1000 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"1100 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"1200 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"1300 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"1400 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"1500 out of 1610 v/j/cdr3 length families assigned\"
+[1] \"1600 out of 1610 v/j/cdr3 length families assigned\"
+"
+"0","```r
+PID4101 <- PID4101 %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = \"LogNormalize\",
+                         assay = \"RNA\",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = \"PID4101\", lineage_df = ldf_PID4101, 
+                  cellrangervdj = paste0(dd, \"PID4101/VDJ/filtered_contig_annotations.csv\"))
+```"
+"1","Performing log-normalization
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+"
+"0","```r
+##############
+## PID4101V ##
+############## PID4101V, Visit 2, COVID Negative Control, Vaccinated
+
+mtx.list <- Read10X(data.dir = paste0(dd, 'PID4101V/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+```"
+"1","10X data contains more than one type and is being returned as a list containing matrices of each type.
+"
+"0","```r
+PID4101V <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = \"PID4101V\")
+PID4101V <- RenameCells(PID4101V, add.cell.id = \"PID4101V\")
+PID4101V[[\"percent.mito\"]] <- PercentageFeatureSet(PID4101V, pattern = \"^MT-\")
+ldf_PID4101V <- assign_lineages(data = paste0(dd, \"PID4101V/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4101V.csv\"), 
+                           pct_homology = 0.85, return_df = T)
+```"
+"1","
+── Column specification ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+cols(
+  .default = col_double(),
+  indexed_contig_id = col_character(),
+  indexed_barcode = col_character(),
+  index = col_character(),
+  seq = col_character(),
+  chain_type = col_character(),
+  isotype = col_character(),
+  c_gene = col_character(),
+  orientation = col_character(),
+  v_domain_functionality = col_character(),
+  v_gene = col_character(),
+  primary_v_allele = col_character(),
+  multiple_v_alleles_possible = col_logical(),
+  v_region_identity_nt = col_character(),
+  j_gene = col_character(),
+  primary_j_allele = col_character(),
+  multiple_j_alleles_possible = col_logical(),
+  j_region_identity_nt = col_character(),
+  nt_vdj = col_character(),
+  nt_vj = col_character(),
+  nt_v = col_character()
+  # ... with 24 more columns
+)
+ℹ Use `spec()` for the full column specifications.
+"
+"1","[1] \"100 out of 1251 v/j/cdr3 length families assigned\"
+[1] \"200 out of 1251 v/j/cdr3 length families assigned\"
+[1] \"300 out of 1251 v/j/cdr3 length families assigned\"
+[1] \"400 out of 1251 v/j/cdr3 length families assigned\"
+[1] \"500 out of 1251 v/j/cdr3 length families assigned\"
+[1] \"600 out of 1251 v/j/cdr3 length families assigned\"
+[1] \"700 out of 1251 v/j/cdr3 length families assigned\"
+[1] \"800 out of 1251 v/j/cdr3 length families assigned\"
+[1] \"900 out of 1251 v/j/cdr3 length families assigned\"
+[1] \"1000 out of 1251 v/j/cdr3 length families assigned\"
+[1] \"1100 out of 1251 v/j/cdr3 length families assigned\"
+[1] \"1200 out of 1251 v/j/cdr3 length families assigned\"
+"
+"0","```r
+PID4101V <- PID4101V %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = \"LogNormalize\",
+                         assay = \"RNA\",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = \"PID4101V\", lineage_df = ldf_PID4101V, 
+                  cellrangervdj = paste0(dd, \"PID4101V/VDJ/filtered_contig_annotations.csv\"))
+```"
+"1","Performing log-normalization
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+"
+"0","```r
+#############
+## PID4127 ##
+############# PID4127, COVID+, 2 days after symptoms
+
+mtx.list <- Read10X(data.dir = paste0(dd, 'PID4127/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+```"
+"1","10X data contains more than one type and is being returned as a list containing matrices of each type.
+"
+"0","```r
+PID4127 <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = \"PID4127\")
+PID4127 <- RenameCells(PID4127, add.cell.id = \"PID4127\")
+PID4127[[\"percent.mito\"]] <- PercentageFeatureSet(PID4127, pattern = \"^MT-\")
+ldf_PID4127 <- assign_lineages(data = paste0(dd, \"PID4127/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4127.csv\"), 
+                           pct_homology = 0.85, return_df = T)
+```"
+"1","
+── Column specification ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+cols(
+  .default = col_double(),
+  indexed_contig_id = col_character(),
+  indexed_barcode = col_character(),
+  index = col_character(),
+  seq = col_character(),
+  chain_type = col_character(),
+  isotype = col_character(),
+  c_gene = col_character(),
+  orientation = col_character(),
+  v_domain_functionality = col_character(),
+  v_gene = col_character(),
+  primary_v_allele = col_character(),
+  multiple_v_alleles_possible = col_logical(),
+  v_region_identity_nt = col_character(),
+  j_gene = col_character(),
+  primary_j_allele = col_character(),
+  multiple_j_alleles_possible = col_logical(),
+  j_region_identity_nt = col_character(),
+  nt_vdj = col_character(),
+  nt_vj = col_character(),
+  nt_v = col_character()
+  # ... with 24 more columns
+)
+ℹ Use `spec()` for the full column specifications.
+"
+"1","[1] \"100 out of 960 v/j/cdr3 length families assigned\"
+[1] \"200 out of 960 v/j/cdr3 length families assigned\"
+[1] \"300 out of 960 v/j/cdr3 length families assigned\"
+[1] \"400 out of 960 v/j/cdr3 length families assigned\"
+[1] \"500 out of 960 v/j/cdr3 length families assigned\"
+[1] \"600 out of 960 v/j/cdr3 length families assigned\"
+[1] \"700 out of 960 v/j/cdr3 length families assigned\"
+[1] \"800 out of 960 v/j/cdr3 length families assigned\"
+[1] \"900 out of 960 v/j/cdr3 length families assigned\"
+"
+"0","```r
+PID4127 <- PID4127 %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = \"LogNormalize\",
+                         assay = \"RNA\",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = \"PID4127\", lineage_df = ldf_PID4127, 
+                  cellrangervdj = paste0(dd, \"PID4127/VDJ/filtered_contig_annotations.csv\"))
+```"
+"1","embedded nul(s) found in inputPerforming log-normalization
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+"
+"0","```r
+##############
+## PID4128V ##
+############## PID4128V, COVID-recovered, Vaccinated
+mtx.list <- Read10X(data.dir = paste0(dd, 'PID4128V/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+```"
+"1","10X data contains more than one type and is being returned as a list containing matrices of each type.
+"
+"0","```r
+PID4128V <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = \"PID4128V\")
+PID4128V <- RenameCells(PID4128V, add.cell.id = \"PID4128V\")
+PID4128V[[\"percent.mito\"]] <- PercentageFeatureSet(PID4128V, pattern = \"^MT-\")
+ldf_PID4128V <- assign_lineages(data = paste0(dd, \"PID4128V/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4128V.csv\"), 
+                           pct_homology = 0.85, return_df = T)
+```"
+"1","
+── Column specification ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+cols(
+  .default = col_double(),
+  indexed_contig_id = col_character(),
+  indexed_barcode = col_character(),
+  index = col_character(),
+  seq = col_character(),
+  chain_type = col_character(),
+  isotype = col_character(),
+  c_gene = col_character(),
+  orientation = col_character(),
+  v_domain_functionality = col_character(),
+  v_gene = col_character(),
+  primary_v_allele = col_character(),
+  multiple_v_alleles_possible = col_logical(),
+  v_region_identity_nt = col_character(),
+  j_gene = col_character(),
+  primary_j_allele = col_character(),
+  multiple_j_alleles_possible = col_logical(),
+  j_region_identity_nt = col_character(),
+  nt_vdj = col_character(),
+  nt_vj = col_character(),
+  nt_v = col_character()
+  # ... with 24 more columns
+)
+ℹ Use `spec()` for the full column specifications.
+"
+"1","[1] \"100 out of 1189 v/j/cdr3 length families assigned\"
+[1] \"200 out of 1189 v/j/cdr3 length families assigned\"
+[1] \"300 out of 1189 v/j/cdr3 length families assigned\"
+[1] \"400 out of 1189 v/j/cdr3 length families assigned\"
+[1] \"500 out of 1189 v/j/cdr3 length families assigned\"
+[1] \"600 out of 1189 v/j/cdr3 length families assigned\"
+[1] \"700 out of 1189 v/j/cdr3 length families assigned\"
+[1] \"800 out of 1189 v/j/cdr3 length families assigned\"
+[1] \"900 out of 1189 v/j/cdr3 length families assigned\"
+[1] \"1000 out of 1189 v/j/cdr3 length families assigned\"
+[1] \"1100 out of 1189 v/j/cdr3 length families assigned\"
+"
+"0","```r
+PID4128V <- PID4128V %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = \"LogNormalize\",
+                         assay = \"RNA\",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = \"PID4128V\", lineage_df = ldf_PID4128V, 
+                  cellrangervdj = paste0(dd, \"PID4128V/VDJ/filtered_contig_annotations.csv\"))
+```"
+"1","Performing log-normalization
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+"
+"0","```r
+#############
+## PID4130 ##
+############# PID4130, COVID+, 80 days after symptoms
+mtx.list <- Read10X(data.dir = paste0(dd, 'PID4130/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+```"
+"1","10X data contains more than one type and is being returned as a list containing matrices of each type.
+"
+"0","```r
+PID4130 <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = \"PID4130\")
+```"
+"1","Feature names cannot have underscores ('_'), replacing with dashes ('-')
+"
+"0","```r
+PID4130 <- RenameCells(PID4130, add.cell.id = \"PID4130\")
+PID4130[[\"percent.mito\"]] <- PercentageFeatureSet(PID4130, pattern = \"^MT-\")
+ldf_PID4130 <- assign_lineages(data = paste0(dd, \"PID4130/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4130.csv\"), 
+                           pct_homology = 0.85, return_df = T)
+```"
+"1","
+── Column specification ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+cols(
+  .default = col_double(),
+  indexed_contig_id = col_character(),
+  indexed_barcode = col_character(),
+  index = col_character(),
+  seq = col_character(),
+  chain_type = col_character(),
+  isotype = col_character(),
+  c_gene = col_character(),
+  orientation = col_character(),
+  v_domain_functionality = col_character(),
+  v_gene = col_character(),
+  primary_v_allele = col_character(),
+  multiple_v_alleles_possible = col_logical(),
+  v_region_identity_nt = col_character(),
+  j_gene = col_character(),
+  primary_j_allele = col_character(),
+  multiple_j_alleles_possible = col_logical(),
+  j_region_identity_nt = col_character(),
+  nt_vdj = col_character(),
+  nt_vj = col_character(),
+  nt_v = col_character()
+  # ... with 24 more columns
+)
+ℹ Use `spec()` for the full column specifications.
+"
+"1","[1] \"100 out of 1653 v/j/cdr3 length families assigned\"
+[1] \"200 out of 1653 v/j/cdr3 length families assigned\"
+[1] \"300 out of 1653 v/j/cdr3 length families assigned\"
+[1] \"400 out of 1653 v/j/cdr3 length families assigned\"
+[1] \"500 out of 1653 v/j/cdr3 length families assigned\"
+[1] \"600 out of 1653 v/j/cdr3 length families assigned\"
+[1] \"700 out of 1653 v/j/cdr3 length families assigned\"
+[1] \"800 out of 1653 v/j/cdr3 length families assigned\"
+[1] \"900 out of 1653 v/j/cdr3 length families assigned\"
+[1] \"1000 out of 1653 v/j/cdr3 length families assigned\"
+[1] \"1100 out of 1653 v/j/cdr3 length families assigned\"
+[1] \"1200 out of 1653 v/j/cdr3 length families assigned\"
+[1] \"1300 out of 1653 v/j/cdr3 length families assigned\"
+[1] \"1400 out of 1653 v/j/cdr3 length families assigned\"
+[1] \"1500 out of 1653 v/j/cdr3 length families assigned\"
+[1] \"1600 out of 1653 v/j/cdr3 length families assigned\"
+"
+"0","```r
+PID4130 <- PID4130 %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = \"LogNormalize\",
+                         assay = \"RNA\",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = \"PID4130\", lineage_df = ldf_PID4130, 
+                  cellrangervdj = paste0(dd, \"PID4130/VDJ/filtered_contig_annotations.csv\"))
+```"
+"1","Performing log-normalization
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+"
+"0","```r
+#############
+## PID4132 ##
+############# PID4132, COVID+, 30 days after symptoms
+mtx.list <- Read10X(data.dir = paste0(dd, 'PID4132/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+```"
+"1","10X data contains more than one type and is being returned as a list containing matrices of each type.
+"
+"0","```r
+PID4132 <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = \"PID4132\")
+```"
+"1","Feature names cannot have underscores ('_'), replacing with dashes ('-')
+"
+"0","```r
+PID4132 <- RenameCells(PID4132, add.cell.id = \"PID4132\")
+PID4132[[\"percent.mito\"]] <- PercentageFeatureSet(PID4132, pattern = \"^MT-\")
+ldf_PID4132 <- assign_lineages(data = paste0(dd, \"PID4132/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4132.csv\"), 
+                           pct_homology = 0.85, return_df = T)
+```"
+"1","
+── Column specification ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+cols(
+  .default = col_double(),
+  indexed_contig_id = col_character(),
+  indexed_barcode = col_character(),
+  index = col_character(),
+  seq = col_character(),
+  chain_type = col_character(),
+  isotype = col_character(),
+  c_gene = col_character(),
+  orientation = col_character(),
+  v_domain_functionality = col_character(),
+  v_gene = col_character(),
+  primary_v_allele = col_character(),
+  multiple_v_alleles_possible = col_logical(),
+  v_region_identity_nt = col_character(),
+  j_gene = col_character(),
+  primary_j_allele = col_character(),
+  multiple_j_alleles_possible = col_logical(),
+  j_region_identity_nt = col_character(),
+  nt_vdj = col_character(),
+  nt_vj = col_character(),
+  nt_v = col_character()
+  # ... with 24 more columns
+)
+ℹ Use `spec()` for the full column specifications.
+"
+"1","[1] \"100 out of 893 v/j/cdr3 length families assigned\"
+[1] \"200 out of 893 v/j/cdr3 length families assigned\"
+[1] \"300 out of 893 v/j/cdr3 length families assigned\"
+[1] \"400 out of 893 v/j/cdr3 length families assigned\"
+[1] \"500 out of 893 v/j/cdr3 length families assigned\"
+[1] \"600 out of 893 v/j/cdr3 length families assigned\"
+[1] \"700 out of 893 v/j/cdr3 length families assigned\"
+[1] \"800 out of 893 v/j/cdr3 length families assigned\"
+"
+"0","```r
+PID4132 <- PID4132 %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = \"LogNormalize\",
+                         assay = \"RNA\",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = \"PID4132\", lineage_df = ldf_PID4132, 
+                  cellrangervdj = paste0(dd, \"PID4132/VDJ/filtered_contig_annotations.csv\"))
+```"
+"1","Performing log-normalization
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+"
+"0","```r
+#############
+## PID4134 ##
+############# PID4134, COVID+, 16 days after symptoms
+mtx.list <- Read10X(data.dir = paste0(dd, 'PID4134/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+```"
+"1","10X data contains more than one type and is being returned as a list containing matrices of each type.
+"
+"0","```r
+PID4134 <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = \"PID4134\")
+```"
+"1","Feature names cannot have underscores ('_'), replacing with dashes ('-')
+"
+"0","```r
+PID4134 <- RenameCells(PID4134, add.cell.id = \"PID4134\")
+PID4134[[\"percent.mito\"]] <- PercentageFeatureSet(PID4134, pattern = \"^MT-\")
+ldf_PID4134 <- assign_lineages(data = paste0(dd, \"PID4134/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4134.csv\"), 
+                           pct_homology = 0.85, return_df = T)
+```"
+"1","
+── Column specification ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+cols(
+  .default = col_double(),
+  indexed_contig_id = col_character(),
+  indexed_barcode = col_character(),
+  index = col_character(),
+  seq = col_character(),
+  chain_type = col_character(),
+  isotype = col_character(),
+  c_gene = col_character(),
+  orientation = col_character(),
+  v_domain_functionality = col_character(),
+  v_gene = col_character(),
+  primary_v_allele = col_character(),
+  multiple_v_alleles_possible = col_logical(),
+  v_region_identity_nt = col_character(),
+  j_gene = col_character(),
+  primary_j_allele = col_character(),
+  multiple_j_alleles_possible = col_logical(),
+  j_region_identity_nt = col_character(),
+  nt_vdj = col_character(),
+  nt_vj = col_character(),
+  nt_v = col_character()
+  # ... with 24 more columns
+)
+ℹ Use `spec()` for the full column specifications.
+"
+"1","[1] \"100 out of 1354 v/j/cdr3 length families assigned\"
+[1] \"200 out of 1354 v/j/cdr3 length families assigned\"
+[1] \"300 out of 1354 v/j/cdr3 length families assigned\"
+[1] \"400 out of 1354 v/j/cdr3 length families assigned\"
+[1] \"500 out of 1354 v/j/cdr3 length families assigned\"
+[1] \"600 out of 1354 v/j/cdr3 length families assigned\"
+[1] \"700 out of 1354 v/j/cdr3 length families assigned\"
+[1] \"800 out of 1354 v/j/cdr3 length families assigned\"
+[1] \"900 out of 1354 v/j/cdr3 length families assigned\"
+[1] \"1000 out of 1354 v/j/cdr3 length families assigned\"
+[1] \"1100 out of 1354 v/j/cdr3 length families assigned\"
+[1] \"1200 out of 1354 v/j/cdr3 length families assigned\"
+[1] \"1300 out of 1354 v/j/cdr3 length families assigned\"
+"
+"0","```r
+PID4134 <- PID4134 %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = \"LogNormalize\",
+                         assay = \"RNA\",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = \"PID4134\", lineage_df = ldf_PID4134, 
+                  cellrangervdj = paste0(dd, \"PID4134/VDJ/filtered_contig_annotations.csv\"))
+```"
+"1","Performing log-normalization
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+"
+"0","```r
+##############
+## PID4XXXV ##
+############## PID4XXXV, COVID Negative Control, Vaccinated
+mtx.list <- Read10X(data.dir = paste0(dd, 'PID4XXXV/Filtered'),
+                     gene.column = 2, unique.features = TRUE, strip.suffix = T)
+```"
+"1","10X data contains more than one type and is being returned as a list containing matrices of each type.
+"
+"0","```r
+PID4XXXV <- CreateSeuratObject(counts = mtx.list$`Gene Expression`, project = \"PID4XXXV\")
+PID4XXXV <- RenameCells(PID4XXXV, add.cell.id = \"PID4XXXV\")
+PID4XXXV[[\"percent.mito\"]] <- PercentageFeatureSet(PID4XXXV, pattern = \"^MT-\")
+ldf_PID4XXXV <- assign_lineages(data = paste0(dd, \"PID4XXXV/VDJ/IMGT/SuPERR-Seq_processed/superrseq_processed_long_imgt_output.index_PID4XXXV.csv\"), 
+                           pct_homology = 0.85, return_df = T)
+```"
+"1","
+── Column specification ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+cols(
+  .default = col_double(),
+  indexed_contig_id = col_character(),
+  indexed_barcode = col_character(),
+  index = col_character(),
+  seq = col_character(),
+  chain_type = col_character(),
+  isotype = col_character(),
+  c_gene = col_character(),
+  orientation = col_character(),
+  v_domain_functionality = col_character(),
+  v_gene = col_character(),
+  primary_v_allele = col_character(),
+  multiple_v_alleles_possible = col_logical(),
+  v_region_identity_nt = col_character(),
+  j_gene = col_character(),
+  primary_j_allele = col_character(),
+  multiple_j_alleles_possible = col_logical(),
+  j_region_identity_nt = col_character(),
+  nt_vdj = col_character(),
+  nt_vj = col_character(),
+  nt_v = col_character()
+  # ... with 24 more columns
+)
+ℹ Use `spec()` for the full column specifications.
+"
+"1","[1] \"100 out of 1385 v/j/cdr3 length families assigned\"
+[1] \"200 out of 1385 v/j/cdr3 length families assigned\"
+[1] \"300 out of 1385 v/j/cdr3 length families assigned\"
+[1] \"400 out of 1385 v/j/cdr3 length families assigned\"
+[1] \"500 out of 1385 v/j/cdr3 length families assigned\"
+[1] \"600 out of 1385 v/j/cdr3 length families assigned\"
+[1] \"700 out of 1385 v/j/cdr3 length families assigned\"
+[1] \"800 out of 1385 v/j/cdr3 length families assigned\"
+[1] \"900 out of 1385 v/j/cdr3 length families assigned\"
+[1] \"1000 out of 1385 v/j/cdr3 length families assigned\"
+[1] \"1100 out of 1385 v/j/cdr3 length families assigned\"
+[1] \"1200 out of 1385 v/j/cdr3 length families assigned\"
+[1] \"1300 out of 1385 v/j/cdr3 length families assigned\"
+"
+"0","```r
+PID4XXXV <- PID4XXXV %>% 
+           MitoFilter() %>%
+           NormalizeData(normalization.method = \"LogNormalize\",
+                         assay = \"RNA\",
+                         scale.factor = 10000) %>%
+           addVDJ(SampleID = \"PID4XXXV\", lineage_df = ldf_PID4XXXV, 
+                  cellrangervdj = paste0(dd, \"PID4XXXV/VDJ/filtered_contig_annotations.csv\"))
+```"
+"1","Performing log-normalization
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+"
+"0","```r
+rm('mtx.list')
+
+################################################################################
+
+
+#########################
+## MERGE Pt REPLICATES ##
+#########################
+samples <- c('PID4101', 'PID4101V', 'PID4127', 'PID4128V',
+             'PID4130', 'PID4132', 'PID4134', 'PID4XXXV')
+TotalPT <- merge(PID4101, y = c(PID4101V, PID4127, PID4128V, PID4130, PID4132, 
+                                PID4134, PID4XXXV), merge.data = T)
+rm(list = )
+
+# Add ribosomal percentage (regex: \"starts with 'RP' followed by either 'S' or 'L'\")
+TotalPT[[\"percent.ribo\"]] <- PercentageFeatureSet(TotalPT, pattern = \"^RP(S|L)\")
+
+############################
+## Add Metadata Variables ##
+############################
+
+# Sex
+TotalPT$sex <- plyr::mapvalues(
+    x = TotalPT$orig.ident, 
+    from = samples, 
+    to = c('Female', 'Female', 'Male', 'Female', 
+           'Female', 'Female', 'Female', 'Female')
+)
+# Age
+TotalPT$age <- plyr::mapvalues(
+    x = TotalPT$orig.ident, 
+    from = samples, 
+    to = c(NA, NA, NA, 36, 
+           54, 28, 35, 34)
+)
+# Vaccination / Infection Status
+TotalPT$Status <- plyr::mapvalues(
+    x = TotalPT$orig.ident, 
+    from = samples, 
+    to = c('Negative CTL', 'Vaccinated', 'Infected', 'Vaccinated', 
+           'Infected', 'Infected', 'Infected', 'Vaccinated')
+)
+# Date of 10X Encapsulation
+TotalPT$date.10x <- plyr::mapvalues(
+    x = TotalPT$orig.ident, 
+    from = samples, 
+    to = c('2020.11.23', '2021.03.23', '2020.09.30', '2021.03.23', 
+           '2020.12.16', '2020.11.23', '2020.11.18', '2021.03.23')
+)
+# Days from PCR+ to 10X
+TotalPT$days.after.pcr <- plyr::mapvalues(
+    x = TotalPT$orig.ident, 
+    from = samples, 
+    to = c(NA, NA, 2, 180, 
+           80, 30, 16, NA)
+)
+# 10X Estimated Cells
+TotalPT$nCells.10X <- plyr::mapvalues(
+    x = TotalPT$orig.ident, 
+    from = samples, 
+    to = c(6619, 4894, 14061, 4712,
+           6637, 4850, 7921, 7389)
+)
+# Days from PCR+ to 10X
+TotalPT$MeanReads.10X <- plyr::mapvalues(
+    x = TotalPT$orig.ident, 
+    from = samples, 
+    to = c(68935, 136087, 26839, 141116,
+    68850, 102153, 47898, 89148))
+# Days from PCR+ to 10X
+TotalPT$MeanGenes.10X <- plyr::mapvalues(
+    x = TotalPT$orig.ident, 
+    from = samples, 
+    to = c(1515, 1630, 769, 1774,
+           1017, 1956, 1559, 1433))
+
+saveRDS(TotalPT, \"./Workflow/Data/TotalPT_VDJ.rds\")
+```"

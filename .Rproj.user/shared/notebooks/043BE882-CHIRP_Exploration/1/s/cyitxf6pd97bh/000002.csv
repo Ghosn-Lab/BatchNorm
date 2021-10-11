@@ -1,0 +1,44 @@
+"0","```r
+GenerateTriplePlot(negative, title = \"CoV2-Negative Donors\", \"adt_CoV2-RBD\")
+ggsave(\"./Figures/Negative_RBD.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(negative, title = \"CoV2-Negative Donors\", \"adt_CoV2-S1\")
+ggsave(\"./Figures/Negative_S1.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(negative, title = \"CoV2-Negative Donors\", \"adt_CoV2-S2\")
+ggsave(\"./Figures/Negative_S2.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(negative, title = \"CoV2-Negative Donors\", \"adt_CoV2-N\")
+ggsave(\"./Figures/Negative_N.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(negative, title = \"CoV2-Negative Donors\", \"adt_Orf3a\")
+ggsave(\"./Figures/Negative_Orf3a.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(negative, title = \"CoV2-Negative Donors\", \"adt_Orf3b\")
+ggsave(\"./Figures/Negative_Orf3b.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(negative, title = \"CoV2-Negative Donors\", \"adt_Env\")
+ggsave(\"./Figures/Negative_Env.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(negative, title = \"CoV2-Negative Donors\", \"adt_Mem\")
+ggsave(\"./Figures/Negative_Mem.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(negative, title = \"CoV2-Negative Donors\", \"adt_Orf7b\")
+ggsave(\"./Figures/Negative_Orf7b.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(negative, title = \"CoV2-Negative Donors\", \"adt_Orf8\")
+ggsave(\"./Figures/Negative_Orf8.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(negative, title = \"CoV2-Negative Donors\", \"adt_Orf9c\")
+ggsave(\"./Figures/Negative_Orf9c.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(negative, title = \"CoV2-Negative Donors\", \"adt_NSP1\")
+ggsave(\"./Figures/Negative_NSP1.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(negative, title = \"CoV2-Negative Donors\", \"adt_NSP10\")
+ggsave(\"./Figures/Negative_NSP10.pdf\", height = 5, width = 10)
+
+GenerateTriplePlot(negative, title = \"CoV2-Negative Donors\", \"adt_NSP7\")
+ggsave(\"./Figures/Negative_NSP7.pdf\", height = 5, width = 10)
+
+```"

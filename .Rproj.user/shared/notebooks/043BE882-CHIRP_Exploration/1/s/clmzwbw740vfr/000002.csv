@@ -1,0 +1,75 @@
+"0","```r
+TotalPT <- readRDS(\"./Data/Drop27_VDJ.rds\")
+
+FeaturePlot(TotalPT, \"CXCR3\")
+
+# Naive CD4 T cells: T4_naive
+#             ADT_CD3+ > ADT_CD4+/ADT_CD8A- > ADT_CD27+/ADT_CD45RA+
+#             Quick look: ADT_CD45RA/ADT_CD4
+# T-Helper cells: Th
+#             ADT_CD3+ > ADT_CD4+/ADT_CD8A- > ADT_CD45RA-/CCR7+ 
+#             Th2/17 > CXCR3-/CCR4+ > CCR6+
+#             Th2 (CCR6lo) & Th17 (CCR6Hi)
+#             Th1 > CXCR3+/CCR4-
+#             Other: CD3/4/45 Th2: CCR4, CCR8, CCR6, Th17: KLRB1 (CD161)
+# Central Memory CD4 T Cells: T4cm
+#             ADT_CD3+ > ADT_CD4+/ADT_CD8A- > ADT_CD27+/ADT_CD45RA-
+#             Other: S100A4 high (25), CD40LG
+# CD14+ Monocytes. Monocytes
+#             ADT_CD3-/ADT_CD19- > ADT_CD14+
+#             Other: CD68 (RNA) CD14 high, CD16 intermediate, CCR2 hi, CX3CR1 hi, CD64A+
+#             (CD25 & AHR exclude)
+#             AHR could mark non-classical? Maybe more CD16 on UMAP But still very high CD14. 
+#             Also has PTPRC
+#             (CD45RO RNA)
+# T4 Effector Memory: T4em
+#             ADT_CD3+ > ADT_CD4+/ADT_CD8A- > ADT_CD27-/ADT_CD45RA- > CCR7-/SELL- (CD62L-)
+# NK T cell. T8nk
+#             ADT_CD3+ > ADT_CD4-/ADT_CD8A+ > ADT_CD27-/ADT_CD45RA+ > ADT_CD16+/ADT_CD56+
+#             Other: KLRD1(CD94)/ADT_CD11C/ADT_CD45R ADT_CD27- 
+#             (CD45R/CD45RA not shared with T8em)
+# Naive CD8+: T8_naive
+#             ADT_CD3+ > ADT_CD4-/ADT_CD8A+ > ADT_CD27+/ADT_CD45RA+
+#             Other: CD8A, CCR7, CD45RA
+# CD8+ Innate-like Effector Memory: T8em
+#             ADT_CD3+ > ADT_CD4-/ADT_CD8A+ > ADT_CD27-/ADT_CD45RAmixed
+#             Other: CD3/CD8A/KLRD1(CD94)/CD11C (CD5/CD43 not shared with T8nk). CD56 mixed. CD62L- (SELL-)
+#             Contains CD4+/CD8- subset.
+# CD8 Central Memory: T8cm
+#             ADT_CD3+ > ADT_CD4-/ADT_CD8A+ > ADT_CD27+/ADT_CD45RA-
+#             Other: GZMK, CD8A
+# Activated CD8: T8_active
+#             ADT_CD3+ > ADT_CD4-/ADT_CD8A+ > ADT_CD27+/ADT_CD45RA- > CD69+/PDCD1+
+#             Other: TRAV, GZMK, GNLY, ADT_CD95
+#             Contains Gamma Delta T-cells (TRDV2, TRGV9, CD8A-/CD8B-)
+# NK Cells: NK
+#             ADT_CD3- > ADT_CD16+/ADT_CD56+
+#             Contains CD56bright subset
+#             Other: CD45RA+/KLRD1(CD94)/ADT_CD11C/ADT_CD45R ADT_CD27- 
+# Naive B Cells: B_naive
+#             ADT_CD19+ > ADT_CD27-/IGHD+
+#             Other: ADT_CD20/ADT_CD21/ADT_CD45R Contains ADT_CD5+
+# Memory B Cells: B_mem
+#             ADT_CD19+ > ADT_CD27+/IGHD-
+#             Other: ADT_CD20/ADT_CD21/ADT_CD45R/ADT_CD11B Contains Plasma Cells: ADT_CD138, highUMI
+# HSCs (batch-split): HSC
+#             CYTL1, EGFL7, CD34, ADT_CD117
+#             Other: Erythrocyte markers: CD235a (GYPA), CA1, AHSP. 
+#             Main island is majority replicate 2 (high-depth).
+#             Show also CD71+(TFRC)/CD105+(ENG). Normally filtered out for low number of unique features.
+#             Co-cluster with HSCs (mixed batch): 
+# Granulocytes
+#             ADT_CD45+/CD48+ > ADT_CD16+ (Eosinophils) > ADT_CD11B+ (Basophils)
+#             Other: Neutrophils CD68 (RNA) CD14 intermediate, CD16 hi, CCR2 lo, CX3CR1 hi, CD64A-
+#                    Contains Eosinophils: FCER2 (CD23); Basophils: CD44
+
+# TReg Cells: Treg
+#             ADT_CD4+/ADT_CD8A- > FOXP3+
+#             Other: RTKN2, CCR4, CD3, CTLA4. ADT_CD4/25/127lo  
+# Myeloid Dendritic Cells: mDC
+#             CD68+/FCER1A+ > CD1C+/LILRA4-    
+#             Other: JCHAIN-/ADT_CD45RA-         
+# Plasmacytoid Dendritic Cells: pDC
+#             CD68+/FCER1A+ > CD1C-/LILRA4+
+#             Other: JCHAIN+/ADT_CD45RA+
+```"

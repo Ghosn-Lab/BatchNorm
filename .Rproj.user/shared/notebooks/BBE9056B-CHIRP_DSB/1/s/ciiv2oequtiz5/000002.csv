@@ -1,0 +1,21 @@
+"0","```r
+
+ggsave(paste0(dd, \"Figures/DSB_Figs/PID4101V_DSB_ADT_Histogram.pdf\"))
+
+```"
+"1","Saving 7 x 7 in image
+"
+"0","```r
+fil.data <- Read10X(data.dir = paste0(dd, 'PID4101V/Filtered'), 
+                   gene.column = 2, unique.features = TRUE)
+adt.fil <- as.matrix(fil.data$`Antibody Capture`)
+adt.fil <- adt.fil[which(rowSums(adt.fil) > 0),]
+#####################################################
+## REPLACE nCount_ADT VALUE WITH DETERMINED CUTOFF ##
+#####################################################
+seurat.raw <- subset(seurat.raw, nCount_ADT < 1150)
+adt.empty <- GetAssayData(seurat.raw, assay = \"ADT\", slot = 'counts') %>% as.matrix()
+adt.norm <- DSBNormalizeProtein(cell_protein_matrix = adt.fil, empty_drop_matrix = adt.empty)
+write.csv(adt.norm, paste0(dd, 'PID4101V/adt_dsb.csv'))
+rm(list = c('fil.data', 'seurat.raw', 'adt.fil', 'adt.empty', 'adt.norm', 'raw.data', 'adt.raw'))
+```"
